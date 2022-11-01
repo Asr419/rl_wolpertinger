@@ -1,1 +1,3 @@
 *.lock
+.vscode/settings.json
+*.vscode
