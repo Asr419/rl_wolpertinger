@@ -1,1 +1,2 @@
-# rl_recsys
+# Reinforcement Learning Recommender Systems
+Developer: aayush.singharoy@insight-centre.org
