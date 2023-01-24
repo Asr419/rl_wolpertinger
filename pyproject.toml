@@ -17,6 +17,8 @@ plotly = "^5.11.0"
 spotipy = "^2.21.0"
 sklearn = "^0.0"
 pyarrow = "^10.0.0"
+keras-rl2 = "^1.0.5"
+keras = "^2.11.0"
 
 [tool.poetry.dev-dependencies]
 
