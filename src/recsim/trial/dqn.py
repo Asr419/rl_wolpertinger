@@ -44,7 +44,7 @@ class CustomEnv1(Env):
 
         if action in self.state:
             self.state[self.i] = action
-            reward = -100
+            reward = -10
         else:
             self.state[self.i] = action
             reward = CustomEnv1.getReward1(ru, D, self.state, action)
