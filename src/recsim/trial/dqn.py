@@ -26,6 +26,8 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
 
+import wandb
+
 
 class CustomEnv1(Env):
     def __init__(self):
@@ -86,6 +88,8 @@ class CustomEnv1(Env):
 
 
 if __name__ == "__main__":
+    wandb.init()
+
     nusers = 100
     nitems = 100
     k = 10
@@ -141,7 +145,9 @@ if __name__ == "__main__":
 
     dqn = build_agent(model, actions)
     dqn.compile(Adam(lr=1e-3), metrics=["mae"])
-    history = dqn.fit(env, nb_steps=50001, visualize=False, verbose=1)
+    history = dqn.fit(env, nb_steps=10001, visualize=False, verbose=1)
 
     results = dqn.test(env, nb_episodes=30, visualize=False)
-    print(np.mean(results.history["episode_reward"]))
+    mean_episode_reward = np.mean(results.history["episode_reward"])
+    print(mean_episode_reward)
+    wandb.log({"mean_episode_reward": mean_episode_reward})
