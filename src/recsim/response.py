@@ -65,7 +65,7 @@ def simulate_response(self, slate_documents):
 def generate_response(self, doc, response):
     response.clicked = True
     # linear interpolation between choc and kale.
-    if doc.age > 40:
+    if self._user_state.age > 40:
         engagement_loc = 1 / abs(
             (
                 (doc.acousticness - self._user_state.acousticness)
@@ -79,12 +79,11 @@ def generate_response(self, doc, response):
     else:
         engagement_loc = 1 / abs(
             (doc.danceability - self._user_state.danceability)
-            + (doc.energy - self._user_state.energy)
             + (doc.valence - self._user_state.valence)
         )
         engagement_loc *= self._user_state.satisfaction
-        engagement_scale = doc.danceabilty * (self._user_state.mood + 1) + (
-            (1 - doc.energy) * (self._user_state.mood + 1)
+        engagement_scale = doc.danceability * (self._user_state.label + 1) + (
+            (1 - doc.valence) * (self._user_state.label + 1)
         )
     log_engagement = np.random.normal(loc=engagement_loc, scale=engagement_scale)
     response.engagement = np.exp(log_engagement)
@@ -93,15 +92,15 @@ def generate_response(self, doc, response):
 def update_state(self, slate_documents, responses):
     for doc, response in zip(slate_documents, responses):
         if response.clicked:
-            mood = np.random.normal(scale=self._user_state.mood)
+            label = np.random.normal(scale=self._user_state.label)
             net_genre_exposure = (
                 self._user_state.valence * self._user_state.danceability
                 - 2.0 * (doc.danceability - 0.5)
-                + mood
+                + label
             )
             self._user_state.net_genre_exposure = net_genre_exposure
             satisfaction = 1 / (
-                1.0 + np.exp(-self._user_state.mood * net_genre_exposure)
+                1.0 + np.exp(-self._user_state.label * net_genre_exposure)
             )
             self._user_state.satisfaction = satisfaction
             self._user_state.time_budget -= 1
@@ -135,3 +134,38 @@ if __name__ == "__main__":
         slate_size,
         resample_documents=True,
     )
+
+    def clicked_engagement_reward(responses):
+        reward = 0.0
+        for response in responses:
+            if response.clicked:
+                reward += response.engagement
+        return reward
+
+    lts_gym_env = recsim_gym.RecSimGymEnv(ltsenv, clicked_engagement_reward)
+
+    observation_0 = lts_gym_env.reset()
+    print("Observation 0")
+    print("Available documents")
+    doc_strings = [
+        "music_id " + key + " index " + str(value)
+        for key, value in observation_0["doc"].items()
+    ]
+    print("\n".join(doc_strings))
+    print("Noisy user state observation")
+    print(observation_0["user"])
+    # Agent recommends the first three documents.
+    recommendation_slate_0 = [0, 1, 2]
+    observation_1, reward, done, _ = lts_gym_env.step(recommendation_slate_0)
+    print("Observation 1")
+    print("Available documents")
+    doc_strings = [
+        "music_id " + key + " index " + str(value)
+        for key, value in observation_1["doc"].items()
+    ]
+    print("\n".join(doc_strings))
+    rsp_strings = [str(response) for response in observation_1["response"]]
+    print("User responses to documents in the slate")
+    print("\n".join(rsp_strings))
+    print("Noisy user state observation")
+    print(observation_1["user"])

@@ -126,13 +126,13 @@ if __name__ == "__main__":
         ["danceability", "loudness", "speechiness", "acousticness", "liveness"]
     ]
 
-    Sum_of_squared_distances = []
-    K = range(1, 15)
-    for k in K:
-        km = KMeans(n_clusters=k)
-        with threadpool_limits(user_api="openmp", limits=2):
-            km = km.fit(songs_features)
-        Sum_of_squared_distances.append(km.inertia_)
+    # Sum_of_squared_distances = []
+    # K = range(1, 15)
+    # for k in K:
+    #     km = KMeans(n_clusters=k)
+    #     with threadpool_limits(user_api="openmp", limits=2):
+    #         km = km.fit(songs_features)
+    #     Sum_of_squared_distances.append(km.inertia_)
     kmeans = KMeans(n_clusters=4)
     with threadpool_limits(user_api="openmp", limits=2):
         kmeans.fit(songs_features)

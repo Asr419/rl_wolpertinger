@@ -3,3 +3,8 @@
 *.vscode
 *data
 *wandb
+*models
+src/recsim/__pycache__/document_sampler.cpython-39.pyc
+src/recsim/__pycache__/user_sampler.cpython-39.pyc
+src/__pycache__/p4.cpython-39.pyc
+

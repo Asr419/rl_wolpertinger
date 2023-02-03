@@ -178,7 +178,8 @@ if __name__ == "__main__":
                 "speechiness": k.speechiness,
                 "acousticness": k.acousticness,
                 "liveness": k.liveness,
-                "mood": k.mood,
+                "mood": k.label,
             },
             ignore_index=True,
         )
+    print(User)
