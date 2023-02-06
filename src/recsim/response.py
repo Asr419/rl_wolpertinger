@@ -55,6 +55,7 @@ def simulate_response(self, slate_documents):
     self.choice_model.score_documents(
         self._user_state, [doc.create_observation() for doc in slate_documents]
     )
+
     scores = self.choice_model.scores
     selected_index = self.choice_model.choose_item()
     # Populate clicked item.
@@ -64,7 +65,6 @@ def simulate_response(self, slate_documents):
 
 def generate_response(self, doc, response):
     response.clicked = True
-    # linear interpolation between choc and kale.
     if self._user_state.age > 40:
         engagement_loc = 1 / abs(
             (
@@ -73,8 +73,8 @@ def generate_response(self, doc, response):
             )
         )
         engagement_loc *= self._user_state.satisfaction
-        engagement_scale = doc.acousticness * (self._user_state.mood + 1) + (
-            (1 - doc.liveness) * (self._user_state.mood + 1)
+        engagement_scale = doc.acousticness * (self._user_state.label + 1) + (
+            (1 - doc.liveness) * (self._user_state.label + 1)
         )
     else:
         engagement_loc = 1 / abs(
@@ -138,8 +138,8 @@ if __name__ == "__main__":
     def clicked_engagement_reward(responses):
         reward = 0.0
         for response in responses:
-            if response.clicked:
-                reward += response.engagement
+            # if response.clicked:
+            reward += response.engagement
         return reward
 
     lts_gym_env = recsim_gym.RecSimGymEnv(ltsenv, clicked_engagement_reward)
