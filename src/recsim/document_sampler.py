@@ -37,6 +37,12 @@ class LTSDocument(document.AbstractDocument):
         acousticness,
         liveness,
         label,
+        key,
+        mode,
+        instrumentalness,
+        energy,
+        tempo,
+        duration_ms,
     ):
         self.year = year
         self.name = name
@@ -50,6 +56,12 @@ class LTSDocument(document.AbstractDocument):
         self.acousticness = acousticness
         self.liveness = liveness
         self.label = label
+        self.key = key
+        self.mode = mode
+        self.instrumentalness = instrumentalness
+        self.energy = energy
+        self.tempo = tempo
+        self.duration_ms = duration_ms
 
         # doc_id is an integer representing the unique ID of this document
         super(LTSDocument, self).__init__(doc_id)
@@ -80,6 +92,12 @@ class LTSDocument(document.AbstractDocument):
             self.acousticness,
             self.liveness,
             self.label,
+            self.key,
+            self.mode,
+            self.instrumentalness,
+            self.energy,
+            self.tempo,
+            self.duration_ms,
         )
 
 
@@ -109,6 +127,12 @@ class LTSDocumentSampler(document.AbstractDocumentSampler):
         doc_features["label"] = songs.loc[[s]].label
         doc_features["loudness"] = songs.loc[[s]].loudness
         doc_features["speechiness"] = songs.loc[[s]].speechiness
+        doc_features["mode"] = songs.loc[[s]].mode
+        doc_features["key"] = songs.loc[[s]].key
+        doc_features["instrumentalness"] = songs.loc[[s]].instrumentalness
+        doc_features["energy"] = songs.loc[[s]].energy
+        doc_features["tempo"] = songs.loc[[s]].tempo
+        doc_features["duration_ms"] = songs.loc[[s]].duration_ms
         self._music_count += 1
         return self._doc_ctor(**doc_features)
 
@@ -123,7 +147,15 @@ if __name__ == "__main__":
     loudness_scaled = min_max_scaler.fit_transform(loudness)
     spotify_data["loudness"] = pd.DataFrame(loudness_scaled)
     songs_features = spotify_data[
-        ["danceability", "loudness", "speechiness", "acousticness", "liveness"]
+        [
+            "danceability",
+            "loudness",
+            "speechiness",
+            "acousticness",
+            "liveness",
+            "instrumentalness",
+            "energy",
+        ]
     ]
 
     # Sum_of_squared_distances = []
@@ -149,18 +181,18 @@ if __name__ == "__main__":
         data=pc, x="x", y="y", hue="label", fit_reg=False, legend=True, legend_out=True
     )
 
-    tsne = TSNE(n_components=2, perplexity=50)
+    # tsne = TSNE(n_components=2, perplexity=50)
 
-    tsne_components = tsne.fit_transform(songs_features)
+    # tsne_components = tsne.fit_transform(songs_features)
 
-    ts = pd.DataFrame(tsne_components)
-    ts["label"] = y_kmeans
-    ts.columns = ["x", "y", "label"]
+    # ts = pd.DataFrame(tsne_components)
+    # ts["label"] = y_kmeans
+    # ts.columns = ["x", "y", "label"]
 
-    # plot data with seaborn
-    cluster = sns.lmplot(
-        data=ts, x="x", y="y", hue="label", fit_reg=False, legend=True, legend_out=True
-    )
+    # # plot data with seaborn
+    # cluster = sns.lmplot(
+    #     data=ts, x="x", y="y", hue="label", fit_reg=False, legend=True, legend_out=True
+    # )
 
     spotify_data["label"] = y_kmeans
 
@@ -183,6 +215,12 @@ if __name__ == "__main__":
             "acousticness",
             "liveness",
             "label",
+            "key",
+            "mode",
+            "tempo",
+            "instrumentalness",
+            "energy",
+            "duration_ms",
         ]
     ]
 

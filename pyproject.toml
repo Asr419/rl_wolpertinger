@@ -20,6 +20,8 @@ pyarrow = "^10.0.0"
 keras-rl2 = "^1.0.5"
 keras = "^2.11.0"
 wandb = "^0.13.9"
+fitter = "^1.5.2"
+torch = "^1.13.1"
 
 [tool.poetry.dev-dependencies]
 

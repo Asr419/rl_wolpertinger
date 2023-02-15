@@ -30,6 +30,12 @@ class LTSUserState(user.AbstractUserState):
         sensitivity,
         time_budget,
         label,
+        mode,
+        key,
+        duration_ms,
+        tempo,
+        energy,
+        instrumentalness,
         observation_noise_stddev=0.1,
     ):
         ## Transition model parameters
@@ -48,6 +54,12 @@ class LTSUserState(user.AbstractUserState):
         self.liveness = liveness
 
         self.label = label
+        self.mode = mode
+        self.key = key
+        self.duration_ms = duration_ms
+        self.tempo = tempo
+        self.energy = energy
+        self.instrumentalness = instrumentalness
         self.net_genre_exposure = net_genre_exposure
         self.satisfaction = 1 / (1 + np.exp(-sensitivity * net_genre_exposure))
         self.time_budget = time_budget
@@ -133,6 +145,16 @@ class LTSStaticUserSampler(user.AbstractUserSampler):
             0.136, 0.11092283130094402
         )
         self._state_parameters["label"] = np.random.random_integers(4)
+        self._state_parameters["mode"] = np.random.random_integers(2)
+        self._state_parameters["key"] = np.random.random_integers(12)
+        self._state_parameters["duration_ms"] = np.random.laplace(
+            207467.0, 69419.7225773939
+        )
+        self._state_parameters["tempo"] = np.random.gumbel(
+            102.26991914996023, 27.79478925686645
+        )
+        self._state_parameters["energy"] = np.random.uniform(0.0, 1.0)
+        self._state_parameters["instrumentalness"] = np.random.exponential(0.167)
 
         starting_nke = self._rng.random_sample() - 0.5
         self._state_parameters["net_genre_exposure"] = starting_nke
@@ -160,6 +182,12 @@ if __name__ == "__main__":
             "acousticness",
             "liveness",
             "mood",
+            "mode",
+            "key",
+            "duration_ms",
+            "tempo",
+            "energy",
+            "instrumentalness",
         ]
     )
     # starting_nke = []
@@ -179,6 +207,12 @@ if __name__ == "__main__":
                 "acousticness": k.acousticness,
                 "liveness": k.liveness,
                 "mood": k.label,
+                "mode": k.mode,
+                "key": k.key,
+                "duration_ms": k.duration_ms,
+                "tempo": k.tempo,
+                "energy": k.energy,
+                "instrumentalness": k.instrumentalness,
             },
             ignore_index=True,
         )

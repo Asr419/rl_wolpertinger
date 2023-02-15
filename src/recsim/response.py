@@ -55,17 +55,46 @@ def simulate_response(self, slate_documents):
     self.choice_model.score_documents(
         self._user_state, [doc.create_observation() for doc in slate_documents]
     )
-
     scores = self.choice_model.scores
     selected_index = self.choice_model.choose_item()
+    session_engagement = 0
+    session_items = []
+    individual_reward = []
     # Populate clicked item.
-    self._generate_response(slate_documents[selected_index], responses[selected_index])
+    for i in range(0, len(slate_documents)):
+        k = self._generate_response(slate_documents[i], responses[i])
+        p = k.index.tolist()
+        session_items.append(p[0])
+        session_engagement += k.values
+        m = k.values.tolist()
+        individual_reward.append(m[0])
+
+    # self._generate_response(slate_documents[selected_index],
+    #                         responses[selected_index])
+    user_information = [
+        self._user_state.age,
+        self._user_state.gender,
+        self._user_state.acousticness,
+        self._user_state.liveness,
+        self._user_state.danceability,
+        self._user_state.valence,
+        self._user_state.label,
+    ]
+    print(user_information)
+    print(session_items)
+    print(individual_reward)
+    print(session_engagement)
     return responses
 
 
 def generate_response(self, doc, response):
     response.clicked = True
+    # linear interpolation between choc and kale.
     if self._user_state.age > 40:
+        engagement = (
+            (doc.acousticness - self._user_state.acousticness)
+            + (doc.liveness - self._user_state.liveness)
+        ) + (doc.label - self._user_state.label)
         engagement_loc = 1 / abs(
             (
                 (doc.acousticness - self._user_state.acousticness)
@@ -77,6 +106,11 @@ def generate_response(self, doc, response):
             (1 - doc.liveness) * (self._user_state.label + 1)
         )
     else:
+        engagement = (
+            (doc.danceability - self._user_state.danceability)
+            + (doc.valence - self._user_state.valence)
+            + (doc.label - self._user_state.label)
+        )
         engagement_loc = 1 / abs(
             (doc.danceability - self._user_state.danceability)
             + (doc.valence - self._user_state.valence)
@@ -86,7 +120,9 @@ def generate_response(self, doc, response):
             (1 - doc.valence) * (self._user_state.label + 1)
         )
     log_engagement = np.random.normal(loc=engagement_loc, scale=engagement_scale)
-    response.engagement = np.exp(log_engagement)
+
+    response.engagement = np.ceil(engagement)
+    return engagement
 
 
 def update_state(self, slate_documents, responses):
@@ -125,7 +161,7 @@ if __name__ == "__main__":
         },
     )
 
-    slate_size = 3
+    slate_size = 10
     num_candidates = 10
     ltsenv = environment.Environment(
         LTSUserModel(slate_size),
@@ -142,30 +178,17 @@ if __name__ == "__main__":
             reward += response.engagement
         return reward
 
+    def slate_score(env):
+        observation_0 = env.reset()
+
+        doc_strings = [
+            "music_id " + key + " index " + str(value)
+            for key, value in observation_0["doc"].items()
+        ]
+        recommendation_slate_0 = [i for i in range(0, 10)]
+        for i in range(0, 10):
+            observation_1, reward, done, _ = lts_gym_env.step(recommendation_slate_0)
+
     lts_gym_env = recsim_gym.RecSimGymEnv(ltsenv, clicked_engagement_reward)
 
-    observation_0 = lts_gym_env.reset()
-    print("Observation 0")
-    print("Available documents")
-    doc_strings = [
-        "music_id " + key + " index " + str(value)
-        for key, value in observation_0["doc"].items()
-    ]
-    print("\n".join(doc_strings))
-    print("Noisy user state observation")
-    print(observation_0["user"])
-    # Agent recommends the first three documents.
-    recommendation_slate_0 = [0, 1, 2]
-    observation_1, reward, done, _ = lts_gym_env.step(recommendation_slate_0)
-    print("Observation 1")
-    print("Available documents")
-    doc_strings = [
-        "music_id " + key + " index " + str(value)
-        for key, value in observation_1["doc"].items()
-    ]
-    print("\n".join(doc_strings))
-    rsp_strings = [str(response) for response in observation_1["response"]]
-    print("User responses to documents in the slate")
-    print("\n".join(rsp_strings))
-    print("Noisy user state observation")
-    print(observation_1["user"])
+    slate_score(lts_gym_env)
