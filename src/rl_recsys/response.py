@@ -57,34 +57,49 @@ def simulate_response(self, slate_documents):
     )
     scores = self.choice_model.scores
     selected_index = self.choice_model.choose_item()
-    session_engagement = 0
-    session_items = []
-    individual_reward = []
     # Populate clicked item.
-    for i in range(0, len(slate_documents)):
-        k = self._generate_response(slate_documents[i], responses[i])
-        p = k.index.tolist()
-        session_items.append(p[0])
-        session_engagement += k.values
-        m = k.values.tolist()
-        individual_reward.append(m[0])
-
-    # self._generate_response(slate_documents[selected_index],
-    #                         responses[selected_index])
-    user_information = [
-        self._user_state.age,
-        self._user_state.gender,
-        self._user_state.acousticness,
-        self._user_state.liveness,
-        self._user_state.danceability,
-        self._user_state.valence,
-        self._user_state.label,
-    ]
-    print(user_information)
-    print(session_items)
-    print(individual_reward)
-    print(session_engagement)
+    print(slate_documents[selected_index])
+    self._generate_response(slate_documents[selected_index], responses[selected_index])
     return responses
+
+
+#   def simulate_response(self, slate_documents):
+#     # List of empty responses
+#     responses = [self._response_model_ctor() for _ in slate_documents]
+#     # Get click from of choice model.
+#     self.choice_model.score_documents(
+#         self._user_state, [doc.create_observation() for doc in slate_documents]
+#     )
+#     scores = self.choice_model.scores
+#     selected_index = self.choice_model.choose_item()
+#     session_engagement = 0
+#     session_items = []
+#     individual_reward = []
+#     # Populate clicked item.
+#     for i in range(0, len(slate_documents)):
+#         k = self._generate_response(slate_documents[i], responses[i])
+#         p = k.index.tolist()
+#         session_items.append(p[0])
+#         session_engagement += k.values
+#         m = k.values.tolist()
+#         individual_reward.append(m[0])
+
+#     # self._generate_response(slate_documents[selected_index],
+#     #                         responses[selected_index])
+#     user_information = [
+#         self._user_state.age,
+#         self._user_state.gender,
+#         self._user_state.acousticness,
+#         self._user_state.liveness,
+#         self._user_state.danceability,
+#         self._user_state.valence,
+#         self._user_state.label,
+#     ]
+#     print(user_information)
+#     print(session_items)
+#     print(individual_reward)
+#     print(session_engagement)
+#     return responses
 
 
 def generate_response(self, doc, response):
@@ -191,4 +206,28 @@ if __name__ == "__main__":
 
     lts_gym_env = recsim_gym.RecSimGymEnv(ltsenv, clicked_engagement_reward)
 
-    slate_score(lts_gym_env)
+    observation_0 = lts_gym_env.reset()
+    print("Observation 0")
+    print("Available documents")
+    doc_strings = [
+        "music_id " + key + " index " + str(value)
+        for key, value in observation_0["doc"].items()
+    ]
+    print("\n".join(doc_strings))
+    print("Noisy user state observation")
+    print(observation_0["user"])
+    # Agent recommends the first three documents.
+    recommendation_slate_0 = [0, 1, 2]
+    observation_1, reward, done, _ = lts_gym_env.step(recommendation_slate_0)
+    print("Observation 1")
+    print("Available documents")
+    doc_strings = [
+        "music_id " + key + " index " + str(value)
+        for key, value in observation_1["doc"].items()
+    ]
+    print("\n".join(doc_strings))
+    rsp_strings = [str(response) for response in observation_1["response"]]
+    print("User responses to documents in the slate")
+    print("\n".join(rsp_strings))
+    print("Noisy user state observation")
+    print(observation_1["user"])
