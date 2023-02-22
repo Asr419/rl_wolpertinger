@@ -23,6 +23,8 @@ wandb = "^0.13.9"
 fitter = "^1.5.2"
 torch = "^1.13.1"
 ray = {extras = ["rlib"], version = "^2.2.0"}
+scikit-learn = "^1.2.1"
+black = "^23.1.0"
 
 [tool.poetry.dev-dependencies]
 
