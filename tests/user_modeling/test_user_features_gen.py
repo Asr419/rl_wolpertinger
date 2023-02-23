@@ -1,5 +1,3 @@
-import pytest
-
 from rl_recsys.user_modeling.user_features_gen import NormalUserFeaturesGenerator
 
 
