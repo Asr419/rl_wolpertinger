@@ -23,8 +23,10 @@ class AbstractUserState(metaclass=abc.ABCMeta):
 
 class AlphaIntentUserState(AbstractUserState):
     def __init__(self, user_features: npt.NDArray[np.float64]) -> None:
+        # called p_u in the paper
         self.user_features = user_features
         self.tgt_feature_idx = np.random.randint(0, len(user_features))
+        # called p_uh in the paper
         self.user_state = self.generate_state(self.user_features)
 
     def generate_state(
