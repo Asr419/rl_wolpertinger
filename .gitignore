@@ -9,3 +9,6 @@ src/recsim/__pycache__/user_sampler.cpython-39.pyc
 src/__pycache__/p4.cpython-39.pyc
 
 src/__pycache__/p4.cpython-39.pyc
+tests/user_modeling/__pycache__/test_user_features_gen.cpython-39-pytest-7.2.1.pyc
+.gitignore
+src/rl_recsys/user_modeling/__pycache__/user_features_gen.cpython-39.pyc
