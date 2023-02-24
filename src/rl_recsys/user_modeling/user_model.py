@@ -26,14 +26,16 @@ class UserModel:
         avg_song_duration: float = 207467.0,
     ) -> None:
         self.budget = songs_per_sess * avg_song_duration
-        self.response_func = response_func
         self.state_model = user_state_model
         self.choice_model = user_choice_model
-        self.features = user_features
         self.response_model = user_response_model
+        self.features = user_features
 
     def is_terminal(self) -> bool:
         return self.budget <= 0
+
+
+# TODO: user sampler, user choice model
 
 
 class UserSampler:
