@@ -1,10 +1,14 @@
 import abc
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 
 class AbstractResponseModel(metaclass=abc.ABCMeta):
+    def __init__(self, **kwds: Any) -> None:
+        pass
+
     @abc.abstractmethod
     def generate_response(
         self,

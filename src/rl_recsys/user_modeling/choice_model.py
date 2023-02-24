@@ -1,5 +1,6 @@
 # implement user choice model
 import abc
+from typing import Any, Callable, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -7,6 +8,9 @@ import numpy.typing as npt
 
 # maybe the scoring function can be passed as a parameter
 class AbstractChoiceModel(metaclass=abc.ABCMeta):
+    def __init__(self, **kwds: Any) -> None:
+        pass
+
     @abc.abstractmethod
     def _score_document(
         self, user_state: npt.NDArray[np.float64], doc_repr: npt.NDArray[np.float64]

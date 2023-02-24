@@ -1,11 +1,13 @@
 import abc
-from typing import Any, Callable, Type, TypeVar
+from dataclasses import dataclass
+from typing import Any, Callable, List, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 
 from rl_recsys.user_modeling.choice_model import AbstractChoiceModel
 from rl_recsys.user_modeling.response_model import AbstractResponseModel
+from rl_recsys.user_modeling.user_features_gen import AbstractUserFeaturesGenerator
 from rl_recsys.user_modeling.user_state import AbstractUserState
 
 user_state_model_type = TypeVar("user_state_model_type", bound=AbstractUserState)
@@ -13,6 +15,7 @@ user_choice_model_type = TypeVar("user_choice_model_type", bound=AbstractChoiceM
 user_response_model_type = TypeVar(
     "user_response_model_type", bound=AbstractResponseModel
 )
+user_feature_gen_type = TypeVar("feature_gen_type", bound=AbstractUserFeaturesGenerator)
 
 
 class UserModel:
@@ -34,24 +37,44 @@ class UserModel:
     def is_terminal(self) -> bool:
         return self.budget <= 0
 
-
-# TODO: user sampler, user choice model
+    def update_budget(self, selected_doc_duration: float) -> None:
+        self.budget -= selected_doc_duration
 
 
 class UserSampler:
     # has to call user features generator to initialize a user
-    def generate_user(
-        self, user_features_gen: user_features_gen, user_state_gen: user_state_gen
-    ) -> UserModel:
-        user_features = user_features_gen()
-        user_state = user_state_gen()
-        user_choice_model = self.user_choice_model
-        return UserModel(user_features, user_state, user_choice_model)
+    def __init__(
+        self,
+        user_feature_gen: user_feature_gen_type,
+        state_model_cls: type[user_state_model_type],
+        choice_model_cls: type[user_choice_model_type],
+        response_model_cls: type[user_response_model_type],
+    ) -> None:
+        self.state_model_cls = state_model_cls
+        self.choice_model_cls = choice_model_cls
+        self.response_model_cls = response_model_cls
+        self.feature_gen = user_feature_gen
 
-    def generate_batch_users(
-        self, user_features_gen: user_features_gen, user_state_gen: user_state_gen
-    ) -> List[UserModel]:
-        return [
-            self.generate_user(user_features_gen, user_state_gen)
-            for _ in range(self.batch_size)
-        ]
+        self.users: List[UserModel]
+
+    def generate_user(self, num_users: int = 100) -> UserModel:
+        # generate a user
+        user_features = self.feature_gen()
+
+        # initialize models
+        state_model = self.state_model_cls(user_features=user_features)
+        choice_model = self.choice_model_cls(user_state=state_model.user_state)
+        response_model = self.response_model_cls(user_state=state_model.user_state)
+
+        user = UserModel(
+            user_features=user_features,
+            user_state_model=state_model,
+            user_choice_model=choice_model,
+            user_response_model=response_model,
+        )
+
+        return user
+
+    def generate_user_batch(self, num_users: int = 100) -> List[UserModel]:
+        self.users = [self.generate_user() for _ in range(num_users)]
+        return self.users
