@@ -6,7 +6,7 @@ import numpy.typing as npt
 from recsim.choice_model import AbstractChoiceModel
 
 
-class AbstractUserFeaturesGenerator(metaclass=abc.ABCMeta):
+class AbstractFeaturesGenerator(metaclass=abc.ABCMeta):
     # class modeling generators for user state
     def __init__(self, num_features: int) -> None:
         self.num_features = num_features
@@ -22,7 +22,7 @@ class AbstractUserFeaturesGenerator(metaclass=abc.ABCMeta):
         pass
 
 
-class NormalUserFeaturesGenerator(AbstractUserFeaturesGenerator):
+class NormalUserFeaturesGenerator(AbstractFeaturesGenerator):
     """Normal distribution user state generator"""
 
     def __init__(self, mean: float = 0.0, std: float = 1.0) -> None:

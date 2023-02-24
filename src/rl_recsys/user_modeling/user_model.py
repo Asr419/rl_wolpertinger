@@ -6,8 +6,8 @@ import numpy as np
 import numpy.typing as npt
 
 from rl_recsys.user_modeling.choice_model import AbstractChoiceModel
+from rl_recsys.user_modeling.features_gen import AbstractFeaturesGenerator
 from rl_recsys.user_modeling.response_model import AbstractResponseModel
-from rl_recsys.user_modeling.user_features_gen import AbstractUserFeaturesGenerator
 from rl_recsys.user_modeling.user_state import AbstractUserState
 
 user_state_model_type = TypeVar("user_state_model_type", bound=AbstractUserState)
@@ -15,7 +15,7 @@ user_choice_model_type = TypeVar("user_choice_model_type", bound=AbstractChoiceM
 user_response_model_type = TypeVar(
     "user_response_model_type", bound=AbstractResponseModel
 )
-user_feature_gen_type = TypeVar("feature_gen_type", bound=AbstractUserFeaturesGenerator)
+feature_gen_type = TypeVar("feature_gen_type", bound=AbstractFeaturesGenerator)
 
 
 class UserModel:
@@ -45,7 +45,7 @@ class UserSampler:
     # has to call user features generator to initialize a user
     def __init__(
         self,
-        user_feature_gen: user_feature_gen_type,
+        user_feature_gen: feature_gen_type,
         state_model_cls: type[user_state_model_type],
         choice_model_cls: type[user_choice_model_type],
         response_model_cls: type[user_response_model_type],
@@ -57,7 +57,7 @@ class UserSampler:
 
         self.users: List[UserModel]
 
-    def generate_user(self, num_users: int = 100) -> UserModel:
+    def _generate_user(self, num_users: int = 100) -> UserModel:
         # generate a user
         user_features = self.feature_gen()
 
@@ -75,6 +75,13 @@ class UserSampler:
 
         return user
 
-    def generate_user_batch(self, num_users: int = 100) -> List[UserModel]:
-        self.users = [self.generate_user() for _ in range(num_users)]
+    def generate_users(self, num_users: int = 100) -> List[UserModel]:
+        self.users = [self._generate_user() for _ in range(num_users)]
         return self.users
+
+    def sample_user(self) -> UserModel:
+        assert (
+            len(self.users) > 0
+        ), "No users generated yet. call generate_user_batch() first.)"
+        i = np.random.randint(0, len(self.users))
+        return self.users[i]
