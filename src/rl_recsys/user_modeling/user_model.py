@@ -57,7 +57,7 @@ class UserSampler:
 
         self.users: List[UserModel]
 
-    def _generate_user(self, num_users: int = 100) -> UserModel:
+    def _generate_user(self) -> UserModel:
         # generate a user
         user_features = self.feature_gen()
 
