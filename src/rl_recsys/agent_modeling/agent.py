@@ -1,4 +1,9 @@
 import abc
+from typing import TypeVar
+
+import torch
+
+torch_model = TypeVar("torch_model", bound=torch.nn.Module)
 
 
 class AbstractSlateAgent(metaclass=abc.ABCMeta):
@@ -17,3 +22,14 @@ class AbstractSlateAgent(metaclass=abc.ABCMeta):
     def init_state(**kwargs) -> torch.Tensor:
         """Initialize the first estimated state of the agent"""
         pass
+
+
+class AbstractBeliefAgent(metaclass=abc.ABCMeta):
+    # model an abstract agent with a belief state
+    def __init__(self, agent: torch_model, belief_model: torch_model) -> None:
+        self.agent = agent
+        self.belief_model = belief_model
+
+    def update_belief(self, *args, **kwargs) -> torch.Tensor:
+        """Update the belief state of the agent"""
+        return self.belief_model(*args, **kwargs)

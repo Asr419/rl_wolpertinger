@@ -38,7 +38,11 @@ if __name__ == "__main__":
     for feat in FEATS_PREPROCESSING:
         doc_feat[feat] = scaler.fit_transform(doc_feat[[feat]])
 
+    # adding song_id as integer
     doc_feat["song_id"] = np.arange(len(doc_feat))
+
+    # filtering on relevant features
+    doc_feat = doc_feat[FINAL_FEATS]
 
     # saving preproessed features
     save_path = DATA_PATH / "prep_spotify.feather"

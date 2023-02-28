@@ -24,7 +24,10 @@ class AbstractChoiceModel(metaclass=abc.ABCMeta):
         return scores
 
     @abc.abstractmethod
-    def choose_document(self, docs_repr: npt.NDArray[np.float64]) -> int:
+    def choose_document(
+        self, user_state: npt.NDArray[np.float64], docs_repr: npt.NDArray[np.float64]
+    ) -> int:
+        # return the index of the chosen document in the slate
         pass
 
 
@@ -36,5 +39,10 @@ class DeterministicChoicheModel(AbstractChoiceModel):
     ) -> npt.NDArray[np.float64]:
         return np.dot(user_state, doc_repr)
 
-    def choose_document(self, scores: npt.NDArray[np.float64]) -> int:
+    def choose_document(
+        self,
+        user_state: npt.NDArray[np.float64],
+        docs_repr: npt.NDArray[np.float64],
+    ) -> int:
+        scores = self.score_documents(user_state=user_state, docs_repr=docs_repr)
         return int(np.argmax(scores))

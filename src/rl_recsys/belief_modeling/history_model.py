@@ -37,6 +37,7 @@ class AvgHistoryModel(AbstractHistoryModel):
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
+        # TODO: wronggggg
         hist_vec = (self.history_vec + observation) / 2
         std_hist_vec = (hist_vec - torch.mean(hist_vec)) / torch.std(hist_vec)
         return std_hist_vec
