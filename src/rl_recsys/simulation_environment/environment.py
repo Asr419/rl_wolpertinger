@@ -1,11 +1,10 @@
 import random as rand
 from math import sqrt
 
+import gymnasium as gym
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from gym import Env
-from gym.spaces import Box, Discrete
 
 from rl_recsys.belief_modeling import belief_model
 from rl_recsys.user_modeling.choice_model import DeterministicChoicheModel
@@ -13,7 +12,7 @@ from rl_recsys.user_modeling.user_model import UserModel, UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 
 
-class MusicGym(Env):
+class MusicGym(gym.Env):
     def __init__(
         self,
         user_sampler,

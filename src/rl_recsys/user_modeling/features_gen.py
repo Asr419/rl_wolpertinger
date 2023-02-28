@@ -3,7 +3,6 @@ from typing import Any, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
-from recsim.choice_model import AbstractChoiceModel
 
 
 class AbstractFeaturesGenerator(metaclass=abc.ABCMeta):
