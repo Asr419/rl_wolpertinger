@@ -1,15 +1,21 @@
 import abc
+from typing import TypeVar
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from rl_recsys.belief_modeling.history_model import AbstractHistoryModel
+
+hist_model_type = TypeVar("hist_model_type", bound=AbstractHistoryModel)
+
 
 class AbstractBeliefModel(nn.Module, metaclass=abc.ABCMeta):
-    def __init__(self, num_doc_features: int) -> None:
+    def __init__(self, num_doc_features: int, hist_model: hist_model_type) -> None:
         super().__init__()
         self.state = self._init_prev_state()
         self.num_doc_features = num_doc_features
+        self.hist = hist_model
 
     @abc.abstractmethod
     def _init_prev_state(self) -> torch.Tensor:
@@ -31,8 +37,8 @@ class AbstractBeliefModel(nn.Module, metaclass=abc.ABCMeta):
 
 
 class ConcatBeliefModel(AbstractBeliefModel):
-    def __init__(self, num_doc_features: int) -> None:
-        super().__init__(num_doc_features=num_doc_features)
+    def __init__(self, num_doc_features: int, hist_model: hist_model_type) -> None:
+        super().__init__(num_doc_features=num_doc_features, hist_model=hist_model)
 
     def _init_prev_vector(self) -> torch.Tensor:
         # initialize the history vector with zeros
@@ -52,8 +58,10 @@ class ConcatBeliefModel(AbstractBeliefModel):
 
 
 class NNBeliefModel(AbstractBeliefModel):
-    def __init__(self, num_doc_features: int) -> None:
-        super(NNBeliefModel, self).__init__(num_doc_features=num_doc_features)
+    def __init__(self, num_doc_features: int, hist_model) -> None:
+        super(NNBeliefModel, self).__init__(
+            num_doc_features=num_doc_features, hist_model=hist_model
+        )
         input_size = 2 * num_doc_features
         self.fc1 = nn.Linear(input_size, 128)
         self.fc2 = nn.Linear(128, 128)

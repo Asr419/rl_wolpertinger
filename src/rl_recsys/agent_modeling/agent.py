@@ -1,8 +1,9 @@
 import abc
 from typing import TypeVar
-from rl_recsys.belief_modeling.belief_model import NNBeliefModel
 
 import torch
+
+from rl_recsys.belief_modeling.belief_model import NNBeliefModel
 
 torch_model = TypeVar("torch_model", bound=torch.nn.Module)
 

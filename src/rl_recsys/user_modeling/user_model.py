@@ -34,6 +34,9 @@ class UserModel:
         self.response_model = user_response_model
         self.features = user_features
 
+        self.song_per_sess = songs_per_sess
+        self.avg_song_duration = avg_song_duration
+
     def get_state(self):
         return self.state_model.user_state
 
@@ -42,6 +45,9 @@ class UserModel:
 
     def update_budget(self, selected_doc_duration: float) -> None:
         self.budget -= selected_doc_duration
+
+    def update_budget_avg(self) -> None:
+        self.budget -= self.avg_song_duration
 
 
 class UserSampler:

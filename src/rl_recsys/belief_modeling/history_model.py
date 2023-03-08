@@ -44,8 +44,14 @@ class AvgHistoryModel(AbstractHistoryModel):
 
 
 class GRUModel(AbstractHistoryModel):
-    def __init__(self, num_doc_features, hidden_size, output_size, num_layers):
-        super(GRUModel, self).__init__()
+    def __init__(
+        self,
+        num_doc_features: int,
+        hidden_size: int,
+        output_size: int,
+        num_layers: int,
+    ):
+        super().__init__(num_doc_features=num_doc_features)
         self.gru = nn.GRU(
             input_size=num_doc_features,
             hidden_size=hidden_size,
@@ -62,7 +68,7 @@ class GRUModel(AbstractHistoryModel):
         # initialize the history vector with zeros
         return torch.zeros(self.num_doc_features)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Concatenate buffer and input
         x = torch.cat((self.buffer, x), dim=1)
 

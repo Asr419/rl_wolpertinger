@@ -5,6 +5,7 @@ import gymnasium as gym
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import torch
 
 from rl_recsys.belief_modeling import belief_model
 from rl_recsys.user_modeling.choice_model import DeterministicChoicheModel
@@ -30,23 +31,29 @@ class MusicGym(gym.Env):
         self.curr_user: UserModel
         self.candidate_docs: list[int]
 
-    def step(self, slate: list[int], belief_state: npt.NDArray[np.float_]):
+    def step(self, slate: npt.NDArray[np.int_], belief_state: torch.Tensor):
         # action: is the slate created by the agent
         # observation: is the selected document in the slate
 
+        # retrieving fetaures of the slate documents
         doc_features = self.doc_catalogue.get_docs_features(slate)
+        # select from the slate on item following the user choice model
         selected_doc_idx = self.curr_user.choice_model.choose_document(
             self.curr_user.get_state(), doc_features
         )
+
+        # ???
         doc_id = slate[selected_doc_idx]
+
+        # get feature of the selected document
         selected_doc_feature = doc_features[selected_doc_idx, :]
 
-        # belief update goes into the agent
-        # self.next_belief_state = belief_model(self.belief_state, action)
-
         # compute the reward
-        response = self.curr_user.response_model.generate_response(belief_state, doc_id)
-        self.curr_user.update_budget(song_duration)
+        response = self.curr_user.response_model.generate_response(
+            belief_state, selected_doc_feature
+        )
+        # update the budget
+        self.curr_user.update_budget_avg()
 
         terminated = self.curr_user.is_terminal()
         info = {}
@@ -60,3 +67,9 @@ class MusicGym(gym.Env):
 
     def render(self):
         raise NotImplementedError()
+
+    def get_curr_state(self):
+        return self.curr_user.get_state()
+
+    def get_candidate_docs(self):
+        return self.candidate_docs
