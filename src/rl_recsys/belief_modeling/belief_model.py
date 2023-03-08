@@ -56,8 +56,8 @@ class NNBeliefModel(AbstractBeliefModel):
         super(NNBeliefModel, self).__init__(num_doc_features=num_doc_features)
         input_size = 2 * num_doc_features
         self.fc1 = nn.Linear(input_size, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, num_doc_features)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, num_doc_features)
 
     def forward(self, history_vec: torch.Tensor) -> torch.Tensor:
         """Outputs the estimated state given the history vector and the previous state
