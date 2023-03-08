@@ -1,5 +1,6 @@
 import abc
 from typing import TypeVar
+from rl_recsys.belief_modeling.belief_model import NNBeliefModel
 
 import torch
 

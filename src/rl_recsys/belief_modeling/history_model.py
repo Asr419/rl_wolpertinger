@@ -20,7 +20,7 @@ class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def _init_history_vectror(self) -> torch.Tensor:
+    def _init_history_vector(self) -> torch.Tensor:
         """Generate the first history vector."""
         pass
 
@@ -31,7 +31,7 @@ class AvgHistoryModel(AbstractHistoryModel):
     def __init__(self, num_doc_features: int):
         super().__init__(num_doc_features=num_doc_features)
 
-    def _init_history_vectror(self) -> torch.Tensor:
+    def _init_history_vector(self) -> torch.Tensor:
         # initialize the history vector with zeros
         return torch.zeros(self.num_doc_features)
 
@@ -41,3 +41,36 @@ class AvgHistoryModel(AbstractHistoryModel):
         hist_vec = (self.history_vec + observation) / 2
         std_hist_vec = (hist_vec - torch.mean(hist_vec)) / torch.std(hist_vec)
         return std_hist_vec
+
+
+class GRUModel(AbstractHistoryModel):
+    def __init__(self, num_doc_features, hidden_size, output_size, num_layers):
+        super(GRUModel, self).__init__()
+        self.gru = nn.GRU(
+            input_size=num_doc_features,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+        )
+        self.fc = nn.Linear(hidden_size, output_size)
+
+        # Initialize buffer
+        self.buffer = torch.zeros((1, 1, num_doc_features))
+        self.buffer_size = 100
+
+    def _init_history_vector(self) -> torch.Tensor:
+        # initialize the history vector with zeros
+        return torch.zeros(self.num_doc_features)
+
+    def forward(self, x):
+        # Concatenate buffer and input
+        x = torch.cat((self.buffer, x), dim=1)
+
+        # Update buffer
+        self.buffer = x[:, -self.buffer_size :, :]
+
+        # Forward pass through GRU and fully connected layers
+        out, _ = self.gru(x)
+        hist_vec = self.fc(out[:, -1, :])
+
+        return hist_vec
