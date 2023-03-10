@@ -74,7 +74,7 @@ class UserSampler:
 
         # initialize models
         state_model = self.state_model_cls(user_features=user_features)
-        choice_model = self.choice_model_cls(user_state=state_model.user_state)
+        choice_model = self.choice_model_cls()
         response_model = self.response_model_cls(user_state=state_model.user_state)
 
         user = UserModel(

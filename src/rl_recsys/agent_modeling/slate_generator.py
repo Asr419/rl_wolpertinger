@@ -1,9 +1,15 @@
+import abc
+
 import numpy as np
+import torch
+
+from rl_recsys.agent_modeling.dqn_agent import DQNnet
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.utils import load_spotify_data
-from rl_recsys.agent_modeling.dqn_agent import DQNnet
-import torch
-import abc
+
+
+def select_slate_topk():
+    pass
 
 
 class TopK_slate:

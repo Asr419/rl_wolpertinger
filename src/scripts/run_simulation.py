@@ -1,14 +1,14 @@
+from rl_recsys.agent_modeling.agent import Rl_agent
+from rl_recsys.agent_modeling.slate_generator import Topk_slate
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.retrieval import ContentSimilarityRec
 from rl_recsys.simulation_environment.environment import MusicGym
-from rl_recsys.user_modeling.choice_model import DeterministicChoicheModel
+from rl_recsys.user_modeling.choice_model import DotProductChoiceModel
 from rl_recsys.user_modeling.features_gen import NormalUserFeaturesGenerator
 from rl_recsys.user_modeling.response_model import DotProductResponseModel
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
-from rl_recsys.agent_modeling.agent import Rl_agent
-from rl_recsys.agent_modeling.slate_generator import Topk_slate
 
 BATCH_SIZE = 128
 GAMMA = 0.99
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     feat_gen = NormalUserFeaturesGenerator()
 
     state_model_cls = AlphaIntentUserState
-    choice_model_cls = DeterministicChoicheModel
+    choice_model_cls = DotProductChoiceModel
     response_model_cls = DotProductResponseModel
 
     user_sampler = UserSampler(

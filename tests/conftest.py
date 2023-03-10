@@ -2,7 +2,7 @@ import pytest
 
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.retrieval import ContentSimilarityRec
-from rl_recsys.user_modeling.choice_model import DeterministicChoicheModel
+from rl_recsys.user_modeling.choice_model import DotProductChoiceModel
 from rl_recsys.user_modeling.features_gen import NormalUserFeaturesGenerator
 from rl_recsys.user_modeling.response_model import DotProductResponseModel
 from rl_recsys.user_modeling.user_model import UserSampler
@@ -16,7 +16,7 @@ def user_sampler():
     feat_gen = NormalUserFeaturesGenerator()
     # classes
     state_model_cls = AlphaIntentUserState
-    choice_model_cls = DeterministicChoicheModel
+    choice_model_cls = DotProductChoiceModel
     response_model_cls = DotProductResponseModel
 
     user_sampler = UserSampler(

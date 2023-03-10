@@ -8,7 +8,6 @@ import pandas as pd
 import torch
 
 from rl_recsys.belief_modeling import belief_model
-from rl_recsys.user_modeling.choice_model import DeterministicChoicheModel
 from rl_recsys.user_modeling.user_model import UserModel, UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 
@@ -38,9 +37,10 @@ class MusicGym(gym.Env):
         # retrieving fetaures of the slate documents
         doc_features = self.doc_catalogue.get_docs_features(slate)
         # select from the slate on item following the user choice model
-        selected_doc_idx = self.curr_user.choice_model.choose_document(
+        self.curr_user.choice_model.score_documents(
             self.curr_user.get_state(), doc_features
         )
+        selected_doc_idx = self.curr_user.choice_model.choose_document()
 
         # ???
         doc_id = slate[selected_doc_idx]
