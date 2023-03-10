@@ -7,6 +7,8 @@ from rl_recsys.user_modeling.response_model import DotProductResponseModel
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
+from rl_recsys.agent_modeling.agent import Rl_agent
+from rl_recsys.agent_modeling.slate_generator import Topk_slate
 
 BATCH_SIZE = 128
 GAMMA = 0.99
@@ -51,5 +53,6 @@ if __name__ == "__main__":
 
         state = env.get_curr_state()
         candidate_docs = env.get_candidate_docs()
+        slate_gen_func = Topk_slate
 
-        rl_agent()
+        slate = Rl_agent(slate_gen_func, state, candidate_docs)
