@@ -53,6 +53,11 @@ if __name__ == "__main__":
 
         state = env.get_curr_state()
         candidate_docs = env.get_candidate_docs()
+
+        agent = ...
+        belief_model = ...
+        bf_agent = BeliefAgent(agent=agent, belief_model=belief_model)
+
         slate_gen_func = Topk_slate
 
         slate = Rl_agent(slate_gen_func, state, candidate_docs)

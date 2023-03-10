@@ -8,7 +8,18 @@ from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.utils import load_spotify_data
 
 
-def select_slate_topk():
+class AbstractSlateGenerator(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def __call__(
+        self,
+        state: torch.Tensor,
+        candidate_docs: torch.Tensor,
+    ) -> torch.Tensor:
+        """Given a state and a set of candidate documents, create a slate of documents"""
+        pass
+
+
+class TopKSlateGenerator(AbstractSlateGenerator):
     pass
 
 
