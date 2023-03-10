@@ -12,8 +12,7 @@ def test_top_K():
     doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
     dummy_belief_state = torch.rand(14)
 
-    doc_ids = np.array([5, 7, 9])
+    doc_ids = np.array([5, 7, 9, 21, 15, 19, 11, 56, 47, 95])
     topKAgent = TopK_slate(dummy_belief_state, candidate_docs=doc_ids)
     topK = topKAgent.topk_slate(dummy_belief_state, doc_ids)
-
     a = 5

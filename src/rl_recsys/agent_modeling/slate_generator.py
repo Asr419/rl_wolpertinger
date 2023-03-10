@@ -30,7 +30,7 @@ class TopK_slate:
             slate_scores.append(predicted[0])
         slate_scores_tensor = torch.stack([torch.tensor(arr) for arr in slate_scores])
         # slate_scores_tensor = torch.Tensor(slate_scores)
-        values, idx = torch.topk(slate_scores_tensor, k=2, axis=-1)
+        values, idx = torch.topk(slate_scores_tensor, k=10, axis=-1)
         idx = idx.numpy()
         slate_topk = candidate_docs[idx]
         return slate_topk
