@@ -11,7 +11,7 @@ class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
     def __init__(self, num_doc_features: int):
         super().__init__()
         self.num_doc_features = num_doc_features
-        self.history_vec = self._init_history_vectror()
+        self.history_vec = self._init_history_vector()
 
     @abc.abstractmethod
     def forward(self, observation: torch.Tensor) -> torch.Tensor:

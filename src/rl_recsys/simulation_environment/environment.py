@@ -55,21 +55,21 @@ class MusicGym(gym.Env):
         # update the budget
         self.curr_user.update_budget_avg()
 
-        terminated = self.curr_user.is_terminal()
+        is_terminal = self.curr_user.is_terminal()
         info = {}
-        return selected_doc_feature, response, terminated, False, info
+        return selected_doc_feature, response, is_terminal, False, info
 
     def reset(self) -> None:
         # initialize an episode by setting the user and the candidate documents
         user = self.user_sampler.sample_user()
         self.curr_user = user
-        self.candidate_docs = self.rec_model.recommend(user.features)
+        self.candidate_docs = self.rec_model.recommend(user.features, self.k)
 
     def render(self):
         raise NotImplementedError()
 
-    def get_curr_state(self):
+    def get_curr_state(self) -> npt.NDArray[np.float_]:
         return self.curr_user.get_state()
 
-    def get_candidate_docs(self):
-        return self.candidate_docs
+    def get_candidate_docs(self) -> npt.NDArray[np.int_]:
+        return np.array(self.candidate_docs)

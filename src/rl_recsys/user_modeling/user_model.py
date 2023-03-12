@@ -32,10 +32,14 @@ class UserModel:
         self.state_model = user_state_model
         self.choice_model = user_choice_model
         self.response_model = user_response_model
-        self.features = user_features
+        self._features = user_features
 
         self.song_per_sess = songs_per_sess
         self.avg_song_duration = avg_song_duration
+
+    @property
+    def features(self) -> npt.NDArray[np.float_]:
+        return self._features
 
     def get_state(self):
         return self.state_model.user_state

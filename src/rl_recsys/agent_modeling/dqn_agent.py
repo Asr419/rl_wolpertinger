@@ -5,12 +5,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from rl_recsys.agent_modeling.agent import AbstractBeliefAgent, AbstractSlateAgent
+from rl_recsys.agent_modeling.agent import AbstractSlateAgent
 
-Transition = namedtuple("Transition", ("state", "action", "next_state", "reward"))
+Transition = namedtuple(
+    "Transition",
+    ("state", "selected_doc_feat", "reward", "next_state", "candidates_docs"),
+)
 
 
-class ReplayMemory(object):
+class ReplayMemory:
     def __init__(self, capacity):
         self.memory = deque([], maxlen=capacity)
 
@@ -26,32 +29,49 @@ class ReplayMemory(object):
 
 
 class DQNnet(nn.Module):
-    def __init__(self, input_size, output_size=1):
+    def __init__(self, input_size, hidden_dims: list[int], output_size=1):
         # todo: change intra dimensions
         super(DQNnet, self).__init__()
-        self.fc1 = nn.Linear(input_size, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, output_size)
+
+        self.layers = nn.ModuleList()
+        # Add input layer
+        self.layers.append(nn.Linear(input_size, hidden_dims[0]))
+        # Add hidden layers
+        for i in range(len(hidden_dims) - 1):
+            self.layers.append(nn.Linear(hidden_dims[i], hidden_dims[i + 1]))
+        # Add output layer
+        self.layers.append(nn.Linear(hidden_dims[-1], output_size))
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        for layer in self.layers:
+            x = F.relu(layer(x))
         return x
 
 
 class DQNAgent(AbstractSlateAgent, nn.Module):
     def __init__(
-        self, slate_gen_func, input_size: int, output_size: int, tau: float
+        self,
+        slate_gen,
+        input_size: int,
+        output_size: int,
+        hidden_dims: list[int] = [8, 4],
+        tau: float = 0.005,
     ) -> None:
         # init super classes
-        AbstractSlateAgent.__init__(self, slate_gen_func)
+        AbstractSlateAgent.__init__(self, slate_gen)
         nn.Module.__init__(self)
         self.tau = tau
 
         # init DQN nets
-        self.policy_net = DQNnet(input_size=input_size, output_size=output_size)
-        self.target_net = DQNnet(input_size=input_size, output_size=output_size)
+        self.policy_net = DQNnet(
+            input_size=input_size, output_size=output_size, hidden_dims=hidden_dims
+        )
+
+        # note that the target network is not updated during training
+        self.target_net = DQNnet(
+            input_size=input_size, output_size=output_size, hidden_dims=hidden_dims
+        )
+        self.target_net.requires_grad_(False)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
     def soft_update_target_network(self):
@@ -65,20 +85,20 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
             ] * self.tau + target_net_state_dict[key] * (1 - self.tau)
         self.target_net.load_state_dict(target_net_state_dict)
 
-    def compute_candidates_q_values(
-        self, state: torch.Tensor, candidate_docs_repr: torch.Tensor
+    def compute_q_values(
+        self,
+        state: torch.Tensor,
+        candidate_docs_repr: torch.Tensor,
+        use_policy_net: bool = True,
     ) -> torch.Tensor:
-        ...
-        # compute q-values
-        return self.policy_net(state)
+        # concatenate state and candidate docs
+        input = torch.cat([state, candidate_docs_repr], dim=1)
+        # [num_candidate_docs, 1]
+        if use_policy_net:
+            q_val = self.policy_net(input)
+        else:
+            q_val = self.target_net(input)
+        return q_val
 
-    def get_action(
-        self, state: torch.Tensor, candidate_docs: torch.Tensor
-    ) -> torch.Tensor:
-        # compute q-values
-        ...
-        slate = self.slate_gen_func()
-        pass
-
-    def get_target_q_values(self, next_state, reward):
+    def compute_target_q_values(self, next_state, reward):
         pass
