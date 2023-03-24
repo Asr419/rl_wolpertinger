@@ -11,7 +11,10 @@ class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
     def __init__(self, num_doc_features: int):
         super().__init__()
         self.num_doc_features = num_doc_features
-        self.history_vec = self._init_history_vector()
+
+        # register buffer for history vector
+        self.register_buffer("history_vec", self._init_history_vector())
+        # self.history_vec = self._init_history_vector()
 
     @abc.abstractmethod
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
@@ -40,6 +43,7 @@ class AvgHistoryModel(AbstractHistoryModel):
         # TODO: wronggggg
         hist_vec = (self.history_vec + observation) / 2
         std_hist_vec = (hist_vec - torch.mean(hist_vec)) / torch.std(hist_vec)
+        self.history_vec = std_hist_vec
         return std_hist_vec
 
 

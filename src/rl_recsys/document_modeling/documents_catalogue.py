@@ -30,6 +30,9 @@ class DocCatalogue:
         self, doc_ids: npt.NDArray[np.int_]
     ) -> npt.NDArray[np.float_]:
         """Get the features of documentß given list of ids."""
+        if not isinstance(doc_ids, np.ndarray):
+            doc_ids = doc_ids.cpu().numpy()
+
         item_features = self.doc_df.loc[doc_ids, :].values
         return item_features
 

@@ -1,19 +1,14 @@
-import torch
-import torch.optim as optim
+import os
+from datetime import datetime
+from itertools import count
+
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt1
-from itertools import count
+import numpy as np
+import torch
+import torch.optim as optim
 from tqdm import tqdm
-from datetime import datetime
-import os
-
-# set up matplotlib
-is_ipython = "inline" in matplotlib.get_backend()
-if is_ipython:
-    from IPython import display
-
-plt.ion()
 
 from rl_recsys.agent_modeling.agent import BeliefAgent
 from rl_recsys.agent_modeling.dqn_agent import DQNAgent, ReplayMemory, Transition
@@ -29,50 +24,22 @@ from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 GAMMA = 1.0
 TAU = 0.005
-LR = 1e-4
+LR = 1e-3
 
 NUM_EPISODES = 1500
 
-SLATE_SIZE = 10
+SLATE_SIZE = 5
 
 NUM_ITEM_FEATURES = 14
 # number of candidates
-NUM_CANDIDATES = 100
+NUM_CANDIDATES = 30
 
-# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEVICE = "cpu"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# DEVICE = "cpu"
 # DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-episode_durations = []
-
-
-def plot_durations(show_result=True):
-    plt.figure(1)
-    durations_t = torch.tensor(episode_durations, dtype=torch.float)
-    if show_result:
-        plt.title("Result")
-    else:
-        plt.clf()
-        plt.title("Training...")
-    plt.xlabel("Episode")
-    plt.ylabel("Duration")
-    plt.plot(durations_t.numpy())
-    # Take 100 episode averages and plot them too
-    if len(durations_t) >= 100:
-        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99), means))
-        plt.plot(means.numpy())
-
-    plt.pause(0.001)  # pause a bit so that plots are updated
-    if is_ipython:
-        if not show_result:
-            display.display(plt.gcf())
-            display.clear_output(wait=True)
-        else:
-            display.display(plt.gcf())
 
 
 def optimize_model(transitions_batch):
@@ -84,8 +51,8 @@ def optimize_model(transitions_batch):
 
     # [batch_size, num_features]
     selected_doc_feat_batch = torch.stack(batch.selected_doc_feat)
-    state_batch = torch.stack(batch.state)
     # [batch_size, num_features]
+    state_batch = torch.stack(batch.state)
     next_state_batch = torch.stack(batch.next_state)
     # [batch_size, candidates, num_features]
     candidates_batch = torch.stack(batch.candidates_docs)
@@ -97,30 +64,29 @@ def optimize_model(transitions_batch):
         state_batch, selected_doc_feat_batch, use_policy_net=True
     )
 
-    q_tgt = []
+    # Q(s', a): [batch_size, 1]
+    cand_qtgt_list = []
+
     for b in range(len(transitions_batch)):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
+
         next_state_rep = next_state.repeat((candidates.shape[0], 1))
-        q_tgt.append(
-            bf_agent.agent.compute_q_values(
-                next_state_rep, candidates, use_policy_net=False
-            )
+        cand_qtgt = bf_agent.agent.compute_q_values(
+            next_state_rep, candidates, use_policy_net=False
         )
 
-    scores_list = []
-    for b in range(len(transitions_batch)):
-        choice_model.score_documents(state_batch[b, :], candidates_batch[b, :, :])
-        scores_tens = torch.Tensor(choice_model.scores, device=DEVICE)
-        scores_list.append(scores_tens)
+        choice_model.score_documents(next_state, candidates)
 
-    scores = torch.stack(scores_list)
-    q_tgt = torch.stack(q_tgt)
-    Q_tgt = (q_tgt.squeeze() * scores) * GAMMA
-    Q_tgt = Q_tgt.mean(dim=1, keepdim=True)
+        # [num_candidates, 1]
+        scores_tens = torch.Tensor(choice_model.scores, device=DEVICE).unsqueeze(dim=1)
 
-    # Q(s', a'): [batch_size, candidates, 1]
-    expected_q_values = Q_tgt + reward_batch
+        # max over Q(s', a)
+        cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+
+    q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
+
+    expected_q_values = q_tgt * GAMMA + reward_batch
 
     loss = criterion(q_val, expected_q_values)
 
@@ -131,7 +97,6 @@ def optimize_model(transitions_batch):
 
 
 if __name__ == "__main__":
-    loss = []
     # CATALOGUE
     data_df = load_spotify_data()
     doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
@@ -171,9 +136,9 @@ if __name__ == "__main__":
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
     belief_model = AvgHistoryModel(num_doc_features=NUM_ITEM_FEATURES)
-    bf_agent = BeliefAgent(agent=agent, belief_model=belief_model)
+    bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
 
-    replay_memory = ReplayMemory(capacity=10_000)
+    replay_memory = ReplayMemory(capacity=100_000)
 
     criterion = torch.nn.SmoothL1Loss()
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
@@ -181,7 +146,13 @@ if __name__ == "__main__":
     is_terminal = False
     b_u = None
 
+    # store history of loss and reward
+    loss_history = []
+
     for i_episode in tqdm(range(NUM_EPISODES)):
+        episode_loss = []
+        episode_reward = []
+
         env.reset()
         is_terminal = False
         cum_reward = 0
@@ -231,25 +202,30 @@ if __name__ == "__main__":
                     candidate_docs_repr_tens,
                 )
                 b_u = b_u_next
-                cum_reward += responses1
-                if is_terminal:
-                    responses.append(cum_reward)
+
+                # accumulate reward for each episode
+                episode_reward.append(responses1)
+                # cum_reward += responses1
+                # if is_terminal:
+                #     episode_reward.append(cum_reward)
 
             # optimize model
             if len(replay_memory.memory) >= BATCH_SIZE:
                 # sample a batch of transitions from the replay buffer
                 transitions_batch = replay_memory.sample(BATCH_SIZE)
-                loss_plot = optimize_model(transitions_batch)
-                loss.append(loss_plot.detach().numpy())
+                batch_loss = optimize_model(transitions_batch)
+                episode_loss.append(batch_loss.detach().numpy())
+
+                # loss_history.append(batch_loss.detach().numpy())
 
                 bf_agent.agent.soft_update_target_network()
-            # if is_terminal:
-            #     responses.append(cum_reward)
-            #     print(is_terminal)
-            #     print(cum_reward)
-            #     # episode_durations.append(t + 1)
-            #     # plot_durations()
-            #     break
+
+        print(
+            "Loss: {}, Reward: {}".format(
+                np.mean(np.array(episode_loss)), np.mean(np.array(episode_reward))
+            )
+        )
+
     now = datetime.now()
     folder = "results_" + now.strftime("%d-%m-%Y ,%H:%M:%S")
     results_dir = os.path.join("plots/", folder)

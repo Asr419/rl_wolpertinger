@@ -45,7 +45,9 @@ class AlphaIntentUserState(AbstractUserState):
         inv_feat_mask[self.tgt_feature_idx] = 0
 
         user_state[feat_mask == 1] = alpha * user_state[feat_mask == 1]
-        user_state[inv_feat_mask == 1] = inv_alpha * user_state[inv_feat_mask == 1]
+        user_state[inv_feat_mask == 1] = (
+            inv_alpha / (len(user_state) - 1) * user_state[inv_feat_mask == 1]
+        )
 
         return user_state
 

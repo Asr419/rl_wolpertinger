@@ -1,4 +1,5 @@
 import random
+import time
 from collections import deque, namedtuple
 
 import torch
@@ -22,7 +23,8 @@ class ReplayMemory:
         self.memory.append(Transition(*args))
 
     def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
+        batch = random.sample(self.memory, batch_size)
+        return batch
 
     def __len__(self):
         return len(self.memory)
