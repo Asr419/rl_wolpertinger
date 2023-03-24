@@ -1,5 +1,15 @@
 import torch
 import torch.optim as optim
+import matplotlib
+import matplotlib.pyplot as plt
+from itertools import count
+
+# set up matplotlib
+is_ipython = "inline" in matplotlib.get_backend()
+if is_ipython:
+    from IPython import display
+
+plt.ion()
 
 from rl_recsys.agent_modeling.agent import BeliefAgent
 from rl_recsys.agent_modeling.dqn_agent import DQNAgent, ReplayMemory, Transition
@@ -15,12 +25,12 @@ from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
-BATCH_SIZE = 2
+BATCH_SIZE = 5
 GAMMA = 1.0
 TAU = 0.005
 LR = 1e-4
 
-NUM_EPISODES = 10
+NUM_EPISODES = 100
 
 SLATE_SIZE = 10
 
@@ -28,6 +38,35 @@ NUM_ITEM_FEATURES = 14
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = "cpu"
+
+
+episode_durations = []
+
+
+def plot_durations(show_result=True):
+    plt.figure(1)
+    durations_t = torch.tensor(episode_durations, dtype=torch.float)
+    if show_result:
+        plt.title("Result")
+    else:
+        plt.clf()
+        plt.title("Training...")
+    plt.xlabel("Episode")
+    plt.ylabel("Duration")
+    plt.plot(durations_t.numpy())
+    # Take 100 episode averages and plot them too
+    if len(durations_t) >= 100:
+        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+    if is_ipython:
+        if not show_result:
+            display.display(plt.gcf())
+            display.clear_output(wait=True)
+        else:
+            display.display(plt.gcf())
 
 
 def optimize_model(transitions_batch):
@@ -70,11 +109,12 @@ def optimize_model(transitions_batch):
         scores_list.append(scores_tens)
 
     scores = torch.stack(scores_list)
+    q_tgt = torch.stack(q_tgt)
+    Q_tgt = (q_tgt.squeeze() * scores) * GAMMA
+    Q_tgt = Q_tgt.mean(dim=1, keepdim=True)
 
     # Q(s', a'): [batch_size, candidates, 1]
-    expected_q_values = (
-        torch.stack(q_tgt).squeeze() * scores
-    ) * GAMMA + reward_batch.squeeze()
+    expected_q_values = Q_tgt + reward_batch
 
     loss = criterion(q_val, expected_q_values)
 
@@ -99,6 +139,7 @@ if __name__ == "__main__":
     state_model_cls = AlphaIntentUserState
     choice_model_cls = DotProductChoiceModel
     response_model_cls = DotProductResponseModel
+    responses = []
 
     choice_model = DotProductChoiceModel()
 
@@ -143,7 +184,8 @@ if __name__ == "__main__":
         b_u_tens = torch.Tensor(b_u).to(DEVICE)
         candidate_docs_repr_tens = torch.Tensor(candidate_docs_repr).to(DEVICE)
 
-        while not is_terminal:
+        # while not is_terminal:
+        for t in count():
             with torch.no_grad():
                 # Todo: np array into tensor
 
@@ -162,10 +204,12 @@ if __name__ == "__main__":
 
                 q_val = q_val.squeeze()
                 slate = bf_agent.get_action(scores, q_val)
-                selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
+                selected_doc_feature, responses1, is_terminal, _, _ = env.step(
+                    slate, b_u
+                )
 
                 selected_doc_feature = torch.Tensor(selected_doc_feature).to(DEVICE)
-                response = torch.Tensor([response]).to(DEVICE)
+                response = torch.Tensor([responses1]).to(DEVICE)
 
                 b_u_next = bf_agent.update_belief(selected_doc_feature)
 
@@ -186,3 +230,17 @@ if __name__ == "__main__":
                 optimize_model(transitions_batch)
 
                 bf_agent.agent.soft_update_target_network()
+            if is_terminal:
+                responses.append(responses1)
+                episode_durations.append(t + 1)
+                # plot_durations()
+                break
+
+    print("Complete")
+    # plot_durations(show_result=True)
+    plt.plot([x for x in responses])
+    plt.xlabel("step")
+    plt.ylabel("reward")
+    # plt.ioff()
+    plt.show(block=True)
+    plt.savefig("result.png")

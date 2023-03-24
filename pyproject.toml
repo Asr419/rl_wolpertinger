@@ -12,6 +12,7 @@ torch = "^1.13.1"
 scikit-learn = "^1.2.1"
 numpy = "^1.24.2"
 pyarrow = "^11.0.0"
+matplotlib = "^3.7.1"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"

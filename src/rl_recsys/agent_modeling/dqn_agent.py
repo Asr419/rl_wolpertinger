@@ -92,12 +92,12 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         use_policy_net: bool = True,
     ) -> torch.Tensor:
         # concatenate state and candidate docs
-        input = torch.cat([state, candidate_docs_repr], dim=1)
+        input1 = torch.cat([state, candidate_docs_repr], dim=1)
         # [num_candidate_docs, 1]
         if use_policy_net:
-            q_val = self.policy_net(input)
+            q_val = self.policy_net(input1)
         else:
-            q_val = self.target_net(input)
+            q_val = self.target_net(input1)
         return q_val
 
     def compute_target_q_values(self, next_state, reward):
