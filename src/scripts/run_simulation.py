@@ -2,7 +2,11 @@ import torch
 import torch.optim as optim
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt1
 from itertools import count
+from tqdm import tqdm
+from datetime import datetime
+import os
 
 # set up matplotlib
 is_ipython = "inline" in matplotlib.get_backend()
@@ -25,20 +29,22 @@ from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
-BATCH_SIZE = 5
+BATCH_SIZE = 64
 GAMMA = 1.0
 TAU = 0.005
 LR = 1e-4
 
-NUM_EPISODES = 100
+NUM_EPISODES = 1500
 
 SLATE_SIZE = 10
 
 NUM_ITEM_FEATURES = 14
+# number of candidates
+NUM_CANDIDATES = 100
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = "cpu"
-
+# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 episode_durations = []
 
@@ -125,6 +131,7 @@ def optimize_model(transitions_batch):
 
 
 if __name__ == "__main__":
+    loss = []
     # CATALOGUE
     data_df = load_spotify_data()
     doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
@@ -152,7 +159,7 @@ if __name__ == "__main__":
         user_sampler=user_sampler,
         doc_catalogue=doc_catalogue,
         rec_model=rec_model,
-        k=100,
+        k=NUM_CANDIDATES,
     )
 
     # define Slate Gen model
@@ -174,8 +181,10 @@ if __name__ == "__main__":
     is_terminal = False
     b_u = None
 
-    for i_episode in range(NUM_EPISODES):
+    for i_episode in tqdm(range(NUM_EPISODES)):
         env.reset()
+        is_terminal = False
+        cum_reward = 0
         candidate_docs = env.get_candidate_docs()
         candidate_docs_repr = env.doc_catalogue.get_docs_features(candidate_docs)
         # initialize b_u with user features
@@ -184,8 +193,8 @@ if __name__ == "__main__":
         b_u_tens = torch.Tensor(b_u).to(DEVICE)
         candidate_docs_repr_tens = torch.Tensor(candidate_docs_repr).to(DEVICE)
 
-        # while not is_terminal:
-        for t in count():
+        while not is_terminal:
+            # for t in count():
             with torch.no_grad():
                 # Todo: np array into tensor
 
@@ -222,25 +231,44 @@ if __name__ == "__main__":
                     candidate_docs_repr_tens,
                 )
                 b_u = b_u_next
+                cum_reward += responses1
+                if is_terminal:
+                    responses.append(cum_reward)
 
             # optimize model
             if len(replay_memory.memory) >= BATCH_SIZE:
                 # sample a batch of transitions from the replay buffer
                 transitions_batch = replay_memory.sample(BATCH_SIZE)
-                optimize_model(transitions_batch)
+                loss_plot = optimize_model(transitions_batch)
+                loss.append(loss_plot.detach().numpy())
 
                 bf_agent.agent.soft_update_target_network()
-            if is_terminal:
-                responses.append(responses1)
-                episode_durations.append(t + 1)
-                # plot_durations()
-                break
-
+            # if is_terminal:
+            #     responses.append(cum_reward)
+            #     print(is_terminal)
+            #     print(cum_reward)
+            #     # episode_durations.append(t + 1)
+            #     # plot_durations()
+            #     break
+    now = datetime.now()
+    folder = "results_" + now.strftime("%d-%m-%Y ,%H:%M:%S")
+    results_dir = os.path.join("plots/", folder)
+    os.makedirs(results_dir)
     print("Complete")
     # plot_durations(show_result=True)
+    plt.figure(1)
+    plt.subplot(211)
     plt.plot([x for x in responses])
-    plt.xlabel("step")
+    plt.xlabel("episode")
     plt.ylabel("reward")
+    print(len(loss))
     # plt.ioff()
-    plt.show(block=True)
-    plt.savefig("result.png")
+    # plt.show(block=True)
+    # plt.savefig(results_dir + "/results.png")
+    plt.subplot(212)
+    plt1.plot([x for x in loss])
+    plt1.xlabel("steps@10")
+    plt1.ylabel("loss")
+    # plt.ioff()
+    plt1.show(block=True)
+    plt1.savefig(results_dir + "/results.png")

@@ -25,7 +25,7 @@ class UserModel:
         user_state_model: user_state_model_type,
         user_choice_model: user_choice_model_type,
         user_response_model: user_response_model_type,
-        songs_per_sess: int = 50,
+        songs_per_sess: int = 10,
         avg_song_duration: float = 207467.0,
     ) -> None:
         self.budget = songs_per_sess * avg_song_duration
