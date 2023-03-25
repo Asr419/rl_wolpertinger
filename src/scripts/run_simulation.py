@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 from itertools import count
 
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt1
 import numpy as np
 import torch
 import torch.optim as optim
+from torch.profiler import ProfilerActivity, profile, record_function
 from tqdm import tqdm
 
 from rl_recsys.agent_modeling.agent import BeliefAgent
@@ -24,22 +26,24 @@ from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 GAMMA = 1.0
-TAU = 0.005
-LR = 1e-3
+TAU = 0.001
+LR = 1e-4
 
-NUM_EPISODES = 1500
+NUM_EPISODES = 1000
 
 SLATE_SIZE = 5
 
 NUM_ITEM_FEATURES = 14
 # number of candidates
-NUM_CANDIDATES = 30
+NUM_CANDIDATES = 100
 
+TIMING = False
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # DEVICE = "cpu"
 # DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print("DEVICE: ", DEVICE)
 
 
 def optimize_model(transitions_batch):
@@ -47,6 +51,7 @@ def optimize_model(transitions_batch):
     # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
     # detailed explanation). This converts batch-array of Transitions
     # to Transition of batch-arrays.
+    s = time.time()
     batch = Transition(*zip(*transitions_batch))
 
     # [batch_size, num_features]
@@ -59,10 +64,17 @@ def optimize_model(transitions_batch):
     # [batch_size, reward]
     reward_batch = torch.stack(batch.reward)
 
+    # print elapsed time in seconds
+    if TIMING:
+        print("Time to stack: ", time.time() - s)
+
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
     )
+
+    if TIMING:
+        print("Time to compute q values: ", time.time() - s)
 
     # Q(s', a): [batch_size, 1]
     cand_qtgt_list = []
@@ -79,12 +91,15 @@ def optimize_model(transitions_batch):
         choice_model.score_documents(next_state, candidates)
 
         # [num_candidates, 1]
-        scores_tens = torch.Tensor(choice_model.scores, device=DEVICE).unsqueeze(dim=1)
+        scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
 
         # max over Q(s', a)
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
+
+    if TIMING:
+        print("Time to compute q tgt: ", time.time() - s)
 
     expected_q_values = q_tgt * GAMMA + reward_batch
 
@@ -125,6 +140,7 @@ if __name__ == "__main__":
         doc_catalogue=doc_catalogue,
         rec_model=rec_model,
         k=NUM_CANDIDATES,
+        device=DEVICE,
     )
 
     # define Slate Gen model
@@ -157,23 +173,22 @@ if __name__ == "__main__":
         is_terminal = False
         cum_reward = 0
         candidate_docs = env.get_candidate_docs()
-        candidate_docs_repr = env.doc_catalogue.get_docs_features(candidate_docs)
+        candidate_docs_repr = torch.Tensor(
+            env.doc_catalogue.get_docs_features(candidate_docs)
+        ).to(DEVICE)
         # initialize b_u with user features
-        b_u = env.curr_user.features
-
-        b_u_tens = torch.Tensor(b_u).to(DEVICE)
-        candidate_docs_repr_tens = torch.Tensor(candidate_docs_repr).to(DEVICE)
+        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
 
         while not is_terminal:
             # for t in count():
             with torch.no_grad():
                 # Todo: np array into tensor
 
-                b_u_rep = b_u_tens.repeat((candidate_docs_repr_tens.shape[0], 1))
+                b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
 
                 q_val = bf_agent.agent.compute_q_values(
                     state=b_u_rep,
-                    candidate_docs_repr=candidate_docs_repr_tens,
+                    candidate_docs_repr=candidate_docs_repr,
                     use_policy_net=True,
                 )  # type: ignore
 
@@ -195,11 +210,11 @@ if __name__ == "__main__":
 
                 # push memory
                 replay_memory.push(
-                    b_u_tens,
+                    b_u,
                     selected_doc_feature,
                     response,
                     b_u_next,
-                    candidate_docs_repr_tens,
+                    candidate_docs_repr,
                 )
                 b_u = b_u_next
 
@@ -214,7 +229,7 @@ if __name__ == "__main__":
                 # sample a batch of transitions from the replay buffer
                 transitions_batch = replay_memory.sample(BATCH_SIZE)
                 batch_loss = optimize_model(transitions_batch)
-                episode_loss.append(batch_loss.detach().numpy())
+                episode_loss.append(batch_loss)
 
                 # loss_history.append(batch_loss.detach().numpy())
 
@@ -222,29 +237,30 @@ if __name__ == "__main__":
 
         print(
             "Loss: {}, Reward: {}".format(
-                np.mean(np.array(episode_loss)), np.mean(np.array(episode_reward))
+                torch.mean(torch.tensor(episode_loss)),
+                torch.mean(torch.tensor(episode_reward)),
             )
         )
 
-    now = datetime.now()
-    folder = "results_" + now.strftime("%d-%m-%Y ,%H:%M:%S")
-    results_dir = os.path.join("plots/", folder)
-    os.makedirs(results_dir)
-    print("Complete")
-    # plot_durations(show_result=True)
-    plt.figure(1)
-    plt.subplot(211)
-    plt.plot([x for x in responses])
-    plt.xlabel("episode")
-    plt.ylabel("reward")
-    print(len(loss))
-    # plt.ioff()
-    # plt.show(block=True)
-    # plt.savefig(results_dir + "/results.png")
-    plt.subplot(212)
-    plt1.plot([x for x in loss])
-    plt1.xlabel("steps@10")
-    plt1.ylabel("loss")
-    # plt.ioff()
-    plt1.show(block=True)
-    plt1.savefig(results_dir + "/results.png")
+    # now = datetime.now()
+    # folder = "results_" + now.strftime("%d-%m-%Y ,%H:%M:%S")
+    # results_dir = os.path.join("plots/", folder)
+    # os.makedirs(results_dir)
+    # print("Complete")
+    # # plot_durations(show_result=True)
+    # plt.figure(1)
+    # plt.subplot(211)
+    # plt.plot([x for x in responses])
+    # plt.xlabel("episode")
+    # plt.ylabel("reward")
+    # print(len(loss))
+    # # plt.ioff()
+    # # plt.show(block=True)
+    # # plt.savefig(results_dir + "/results.png")
+    # plt.subplot(212)
+    # plt1.plot([x for x in loss])
+    # plt1.xlabel("steps@10")
+    # plt1.ylabel("loss")
+    # # plt.ioff()
+    # plt1.show(block=True)
+    # plt1.savefig(results_dir + "/results.png")

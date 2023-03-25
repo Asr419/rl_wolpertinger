@@ -4,6 +4,7 @@ from typing import Any, Callable, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
+import torch
 
 
 def softmax(vector: npt.NDArray[np.float_]) -> npt.NDArray[np.float_]:
@@ -22,13 +23,13 @@ class AbstractChoiceModel(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _score_documents(
-        self, user_state: npt.NDArray[np.float_], doc_repr: npt.NDArray[np.float_]
-    ) -> float:
+        self, user_state: torch.Tensor, doc_repr: torch.Tensor
+    ) -> torch.Tensor:
         pass
 
     @abc.abstractmethod
     def score_documents(
-        self, user_state: npt.NDArray[np.float_], docs_repr: npt.NDArray[np.float_]
+        self, user_state: torch.Tensor, docs_repr: torch.Tensor
     ) -> None:
         pass
 
@@ -46,8 +47,9 @@ class NormalizableChoiceModel(AbstractChoiceModel):
             self._scores is not None
         ), "Scores are not computed yet. call score_documents() first."
         all_scores = self._scores
-        all_probs = all_scores / np.sum(all_scores)
-        selected_index = np.random.choice(len(all_probs), p=all_probs)
+        all_probs = all_scores / torch.sum(all_scores)
+        # select index according to the probability distribution with pytorch
+        selected_index = torch.multinomial(all_probs, 1).item()
         return selected_index
 
 
@@ -59,22 +61,20 @@ class MultinomialLogitChoiceModel(NormalizableChoiceModel):
 
     @abc.abstractmethod
     def _score_documents(
-        self, user_state: npt.NDArray[np.float_], docs_repr: npt.NDArray[np.float_]
-    ) -> npt.NDArray[np.float_]:
+        self, user_state: torch.Tensor, docs_repr: torch.Tensor
+    ) -> torch.Tensor:
         pass
 
-    def score_documents(
-        self, user_state: npt.NDArray[np.float_], docs_repr: npt.NDArray[np.float_]
-    ):
+    def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
         logits = self._score_documents(user_state, docs_repr)
         # Use softmax scores instead of exponential scores to avoid overflow.
-        self._scores = softmax(logits)
+        self._scores = torch.softmax(logits, dim=0)
 
 
 class DotProductChoiceModel(MultinomialLogitChoiceModel):
     """A multinomial logit choice model with dot product as the scoring function."""
 
     def _score_documents(
-        self, user_state: npt.NDArray[np.float_], docs_repr: npt.NDArray[np.float_]
-    ) -> npt.NDArray[np.float_]:
-        return np.array([np.dot(user_state, doc_repr) for doc_repr in docs_repr])
+        self, user_state: torch.Tensor, docs_repr: torch.Tensor
+    ) -> torch.Tensor:
+        return torch.stack([torch.dot(user_state, doc_repr) for doc_repr in docs_repr])
