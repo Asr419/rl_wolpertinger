@@ -19,10 +19,12 @@ class MusicGym(gym.Env):
         doc_catalogue,
         rec_model,
         k: int = 10,
+        device: torch.device = torch.device("cpu"),
     ) -> None:
         self.user_sampler = user_sampler
         self.doc_catalogue = doc_catalogue
         self.rec_model = rec_model
+        self.device = device
         # number of candidates items
         self.k = k
 
@@ -35,11 +37,12 @@ class MusicGym(gym.Env):
         # observation: is the selected document in the slate
 
         # retrieving fetaures of the slate documents
-        doc_features = self.doc_catalogue.get_docs_features(slate)
-        # select from the slate on item following the user choice model
-        self.curr_user.choice_model.score_documents(
-            self.curr_user.get_state(), doc_features
+        doc_features = torch.Tensor(self.doc_catalogue.get_docs_features(slate)).to(
+            device=self.device
         )
+        p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
+        # select from the slate on item following the user choice model
+        self.curr_user.choice_model.score_documents(p_uh, doc_features)
         selected_doc_idx = self.curr_user.choice_model.choose_document()
 
         # ???
