@@ -38,8 +38,7 @@ class UserModel:
         self.avg_song_duration = avg_song_duration
 
         # initialized by init budget
-        self.budget = None
-        self.init_budget()
+        self.budget = self.init_budget()
 
     @property
     def features(self) -> npt.NDArray[np.float_]:
@@ -58,7 +57,7 @@ class UserModel:
         self.budget -= depreciate
 
     def init_budget(self) -> None:
-        self.budget = self.song_per_sess * self.avg_song_duration
+        return self.song_per_sess * self.avg_song_duration
 
     def update_budget_avg(self) -> None:
         self.budget -= self.avg_song_duration
