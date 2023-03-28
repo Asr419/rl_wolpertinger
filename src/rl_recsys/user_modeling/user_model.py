@@ -51,9 +51,10 @@ class UserModel:
         return self.budget <= 0
 
     def update_budget(self, response: float) -> None:
-        depreciate = self.avg_song_duration * (
-            self.response_model.Amplifier() / response
-        )
+        if response == 0.0:
+            depreciate = self.avg_song_duration * (1.0 - response)
+        else:
+            depreciate = 0.5 * self.avg_song_duration
         self.budget -= depreciate
 
     def init_budget(self) -> None:

@@ -10,13 +10,13 @@ parameters:
   lr:
     value: 1e-4
   num_episodes:
-    value: 1000
+    value: 300
   slate_size:
     value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 500
+    value: 200
   num_users:
     value: 500
   timing:
@@ -24,8 +24,8 @@ parameters:
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
-    value: DotProductChoiceModel
+    value: CosineSimilarityChoiceModel
   response_model_cls:
     value: CosineResponseModel
   choice_model:
-    value: DotProductChoiceModel
+    value: CosineSimilarityChoiceModel

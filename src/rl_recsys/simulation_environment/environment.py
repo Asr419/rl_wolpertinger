@@ -43,13 +43,17 @@ class MusicGym(gym.Env):
         # p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
         # select from the slate on item following the user choice model
         self.curr_user.choice_model.score_documents(self.p_uh, doc_features)
+
         selected_doc_idx = self.curr_user.choice_model.choose_document()
 
         # ???
         doc_id = slate[selected_doc_idx]
 
         # get feature of the selected document
-        selected_doc_feature = doc_features[selected_doc_idx, :]
+        if selected_doc_idx < 0:
+            selected_doc_feature = doc_features[selected_doc_idx, :]
+        else:
+            selected_doc_feature = torch.zeros(14)
 
         # self.p_uh = torch.Tensor(self.curr_user.update_state(selected_doc_feature)).to(
         #     self.device
@@ -58,9 +62,13 @@ class MusicGym(gym.Env):
         response = self.curr_user.response_model.generate_response(
             belief_state, selected_doc_feature
         )
+        if response >= 5:
+            response = torch.tensor(1.0)
+        else:
+            response = torch.tensor(0.0)
         # update the budget
-        self.curr_user.update_budget_avg()
-        # self.curr_user.update_budget(response)
+        # self.curr_user.update_budget_avg()
+        self.curr_user.update_budget(response)
 
         is_terminal = self.curr_user.is_terminal()
         info = {}
@@ -70,8 +78,9 @@ class MusicGym(gym.Env):
         # initialize an episode by setting the user and the candidate documents
         user = self.user_sampler.sample_user()
         self.curr_user = user
+        user.budget = user.init_budget()
         self.p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
-        self.candidate_docs = self.rec_model.recommend(user.features, self.k)
+        self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
 
     def render(self):
         raise NotImplementedError()

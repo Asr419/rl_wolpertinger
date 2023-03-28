@@ -24,10 +24,15 @@ from rl_recsys.belief_modeling.history_model import GRUModel
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.retrieval import ContentSimilarityRec
 from rl_recsys.simulation_environment.environment import MusicGym
-from rl_recsys.user_modeling.choice_model import DotProductChoiceModel
+from rl_recsys.user_modeling.choice_model import (
+    DotProductChoiceModel,
+    CosineSimilarityChoiceModel,
+)
 from rl_recsys.user_modeling.features_gen import NormalUserFeaturesGenerator
-from rl_recsys.user_modeling.response_model import CosineResponseModel
-from rl_recsys.user_modeling.response_model import DotProductResponseModel
+from rl_recsys.user_modeling.response_model import (
+    DotProductResponseModel,
+    CosineResponseModel,
+)
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
@@ -63,8 +68,8 @@ NUM_USERS = config["parameters"]["num_users"]["value"]
 
 TIMING = config["parameters"]["timing"]["value"]
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# DEVICE = "cpu"
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu"
+# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("DEVICE: ", DEVICE)
 
 
@@ -123,7 +128,7 @@ def optimize_model(transitions_batch):
     if TIMING:
         print("Time to compute q tgt: ", time.time() - s)
 
-    expected_q_values = q_tgt * GAMMA + reward_batch
+    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
 
     loss = criterion(q_val, expected_q_values)
 
@@ -148,6 +153,7 @@ if __name__ == "__main__":
         "AlphaIntentUserState": AlphaIntentUserState,
         "DotProductChoiceModel": DotProductChoiceModel,
         "CosineResponseModel": CosineResponseModel,
+        "CosineSimilarityChoiceModel": CosineSimilarityChoiceModel,
     }
 
     state_model_cls = config["parameters"]["state_model_cls"]["value"]
@@ -160,6 +166,7 @@ if __name__ == "__main__":
 
     choice_model_class = config["parameters"]["choice_model"]["value"]
     choice_model = eval(choice_model_class + "()")
+    print(choice_model)
     # choice_model = DotProductChoiceModel()
 
     user_sampler = UserSampler(
@@ -214,7 +221,8 @@ if __name__ == "__main__":
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
         # initialize b_u with user features
-        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        # b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        b_u = torch.randn(14).to(DEVICE)
 
         while not is_terminal:
             # for t in count():
@@ -239,13 +247,11 @@ if __name__ == "__main__":
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
 
                 selected_doc_feature = torch.Tensor(selected_doc_feature).to(DEVICE)
-                a = 5
-                response = torch.Tensor([response]).to(DEVICE)
-                b = 4
 
                 b_u_next = bf_agent.update_belief(selected_doc_feature)
 
                 # push memory
+
                 replay_memory.push(
                     b_u,
                     selected_doc_feature,
@@ -256,6 +262,7 @@ if __name__ == "__main__":
                 b_u = b_u_next
 
                 # accumulate reward for each episode
+
                 reward.append(response)
                 # episode_reward1.append(response)
                 # cum_reward += response
@@ -266,7 +273,7 @@ if __name__ == "__main__":
                 #     )
 
             # optimize model
-            if len(replay_memory.memory) >= (BATCH_SIZE * 20):
+            if len(replay_memory.memory) >= (BATCH_SIZE * 3):
                 # sample a batch of transitions from the replay buffer
                 transitions_batch = replay_memory.sample(BATCH_SIZE)
                 batch_loss = optimize_model(transitions_batch)
@@ -291,14 +298,15 @@ if __name__ == "__main__":
         #         torch.mean(torch.tensor(reward)),
         #     )
         # )
-        if len(replay_memory.memory) >= BATCH_SIZE:
+        if len(replay_memory.memory) >= (BATCH_SIZE * 3):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
         wandb.log(log_dit, step=i_episode)
 
         print(
-            "Loss: {}, Reward: {}".format(
+            "Loss: {}, Reward: {}, Cum_Rew: {}".format(
                 torch.mean(torch.tensor(loss)),
                 torch.mean(torch.tensor(reward)),
+                torch.sum(torch.tensor(reward)),
             )
         )
 
