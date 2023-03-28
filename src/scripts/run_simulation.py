@@ -2,6 +2,10 @@ import os
 import time
 from datetime import datetime
 from itertools import count
+import argparse
+import configparser
+import yaml
+import wandb
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -16,33 +20,51 @@ from rl_recsys.agent_modeling.agent import BeliefAgent
 from rl_recsys.agent_modeling.dqn_agent import DQNAgent, ReplayMemory, Transition
 from rl_recsys.agent_modeling.slate_generator import TopKSlateGenerator
 from rl_recsys.belief_modeling.history_model import AvgHistoryModel
+from rl_recsys.belief_modeling.history_model import GRUModel
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.retrieval import ContentSimilarityRec
 from rl_recsys.simulation_environment.environment import MusicGym
 from rl_recsys.user_modeling.choice_model import DotProductChoiceModel
 from rl_recsys.user_modeling.features_gen import NormalUserFeaturesGenerator
+from rl_recsys.user_modeling.response_model import CosineResponseModel
 from rl_recsys.user_modeling.response_model import DotProductResponseModel
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
-BATCH_SIZE = 128
-GAMMA = 1.0
-TAU = 0.001
-LR = 1e-4
 
-NUM_EPISODES = 1000
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--config",
+    type=str,
+    default="src/scripts/config.yaml",
+    help="Path tot he config file.",
+)
+args = parser.parse_args()
 
-SLATE_SIZE = 5
+with open(args.config, "r") as f:
+    config = yaml.safe_load(f)
 
-NUM_ITEM_FEATURES = 14
+wandb.init(project="rl_recsys", config=config["parameters"])
+BATCH_SIZE = config["parameters"]["batch_size"]["value"]
+GAMMA = config["parameters"]["gamma"]["value"]
+TAU = config["parameters"]["tau"]["value"]
+LR = float(config["parameters"]["lr"]["value"])
+
+NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+
+SLATE_SIZE = config["parameters"]["slate_size"]["value"]
+
+NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
 # number of candidates
-NUM_CANDIDATES = 100
+NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
 
-TIMING = False
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+NUM_USERS = config["parameters"]["num_users"]["value"]
+
+TIMING = config["parameters"]["timing"]["value"]
+# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # DEVICE = "cpu"
-# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("DEVICE: ", DEVICE)
 
 
@@ -65,16 +87,16 @@ def optimize_model(transitions_batch):
     reward_batch = torch.stack(batch.reward)
 
     # print elapsed time in seconds
-    if TIMING:
-        print("Time to stack: ", time.time() - s)
+    # if TIMING:
+    #     print("Time to stack: ", time.time() - s)
 
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
     )
 
-    if TIMING:
-        print("Time to compute q values: ", time.time() - s)
+    # if TIMING:
+    #     print("Time to compute q values: ", time.time() - s)
 
     # Q(s', a): [batch_size, 1]
     cand_qtgt_list = []
@@ -122,18 +144,28 @@ if __name__ == "__main__":
 
     # USER SAMPLER
     feat_gen = NormalUserFeaturesGenerator()
+    class_name_to_class = {
+        "AlphaIntentUserState": AlphaIntentUserState,
+        "DotProductChoiceModel": DotProductChoiceModel,
+        "CosineResponseModel": CosineResponseModel,
+    }
 
-    state_model_cls = AlphaIntentUserState
-    choice_model_cls = DotProductChoiceModel
-    response_model_cls = DotProductResponseModel
+    state_model_cls = config["parameters"]["state_model_cls"]["value"]
+    state_model_cls = class_name_to_class[state_model_cls]
+    choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
+    choice_model_cls = class_name_to_class[choice_model_cls]
+    response_model_cls = config["parameters"]["response_model_cls"]["value"]
+    response_model_cls = class_name_to_class[response_model_cls]
     responses = []
 
-    choice_model = DotProductChoiceModel()
+    choice_model_class = config["parameters"]["choice_model"]["value"]
+    choice_model = eval(choice_model_class + "()")
+    # choice_model = DotProductChoiceModel()
 
     user_sampler = UserSampler(
         feat_gen, state_model_cls, choice_model_cls, response_model_cls
     )
-    user_sampler.generate_users(num_users=100)
+    user_sampler.generate_users(num_users=NUM_USERS)
 
     env = MusicGym(
         user_sampler=user_sampler,
@@ -152,6 +184,9 @@ if __name__ == "__main__":
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
     belief_model = AvgHistoryModel(num_doc_features=NUM_ITEM_FEATURES)
+    # belief_model = GRUModel(
+    #     num_doc_features=NUM_ITEM_FEATURES, hidden_size=14, output_size=14, num_layers=3
+    # )
     bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
 
     replay_memory = ReplayMemory(capacity=100_000)
@@ -163,11 +198,13 @@ if __name__ == "__main__":
     b_u = None
 
     # store history of loss and reward
-    loss_history = []
+    # loss_history = []
+    # episode_reward = []
+    # episode_avg_reward = []
 
     for i_episode in tqdm(range(NUM_EPISODES)):
-        episode_loss = []
-        episode_reward = []
+        reward = []
+        loss = []
 
         env.reset()
         is_terminal = False
@@ -199,12 +236,12 @@ if __name__ == "__main__":
 
                 q_val = q_val.squeeze()
                 slate = bf_agent.get_action(scores, q_val)
-                selected_doc_feature, responses1, is_terminal, _, _ = env.step(
-                    slate, b_u
-                )
+                selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
 
                 selected_doc_feature = torch.Tensor(selected_doc_feature).to(DEVICE)
-                response = torch.Tensor([responses1]).to(DEVICE)
+                a = 5
+                response = torch.Tensor([response]).to(DEVICE)
+                b = 4
 
                 b_u_next = bf_agent.update_belief(selected_doc_feature)
 
@@ -219,26 +256,49 @@ if __name__ == "__main__":
                 b_u = b_u_next
 
                 # accumulate reward for each episode
-                episode_reward.append(responses1)
-                # cum_reward += responses1
+                reward.append(response)
+                # episode_reward1.append(response)
+                # cum_reward += response
                 # if is_terminal:
                 #     episode_reward.append(cum_reward)
+                #     episode_avg_reward.append(
+                #         (sum(episode_reward1) / len(episode_reward1))
+                #     )
 
             # optimize model
-            if len(replay_memory.memory) >= BATCH_SIZE:
+            if len(replay_memory.memory) >= (BATCH_SIZE * 20):
                 # sample a batch of transitions from the replay buffer
                 transitions_batch = replay_memory.sample(BATCH_SIZE)
                 batch_loss = optimize_model(transitions_batch)
-                episode_loss.append(batch_loss)
+                loss.append(batch_loss)
 
                 # loss_history.append(batch_loss.detach().numpy())
 
                 bf_agent.agent.soft_update_target_network()
+        # for i, tensor in enumerate(episode_loss):
+        #     if torch.any(torch.isnan(tensor)):
+        #         pass
+        #     else:
+        #         loss_history.append(sum(episode_loss) / len(episode_loss))
+        #         break
+        ep_avg_reward = torch.mean(torch.tensor(reward))
+        ep_reward = torch.sum(torch.tensor(reward))
+        log_dit = {"cum_reward": ep_reward}
+        log_dit["avg_reward"] = ep_avg_reward
+        # print(
+        #     "cum_reward:{}, ep_avg_reward:{}".format(
+        #         torch.sum(torch.tensor(reward)),
+        #         torch.mean(torch.tensor(reward)),
+        #     )
+        # )
+        if len(replay_memory.memory) >= BATCH_SIZE:
+            log_dit["loss"] = torch.mean(torch.tensor(loss))
+        wandb.log(log_dit, step=i_episode)
 
         print(
             "Loss: {}, Reward: {}".format(
-                torch.mean(torch.tensor(episode_loss)),
-                torch.mean(torch.tensor(episode_reward)),
+                torch.mean(torch.tensor(loss)),
+                torch.mean(torch.tensor(reward)),
             )
         )
 
@@ -249,18 +309,36 @@ if __name__ == "__main__":
     # print("Complete")
     # # plot_durations(show_result=True)
     # plt.figure(1)
-    # plt.subplot(211)
-    # plt.plot([x for x in responses])
+    # plt.subplot(222)
+    # episode_reward = np.array([t.cpu().numpy() for t in episode_reward])
+    # plt.plot([x for x in episode_reward])
     # plt.xlabel("episode")
     # plt.ylabel("reward")
+
+    # plt.subplot(212)
+    # episode_avg_reward = np.array([t.cpu().numpy() for t in episode_avg_reward])
+    # plt.plot([x for x in episode_avg_reward])
+    # plt.xlabel("episode")
+    # plt.ylabel("avg_reward")
+
+    # loss_history = np.array([t.cpu().detach().numpy() for t in loss_history])
+    # plt.subplot(221)
+    # plt.plot([x for x in loss_history])
+    # plt.xlabel("episode")
+    # plt.ylabel("loss")
+
+    # # print(episode_reward)
+    # # print(episode_avg_reward)
+    # # print(loss_history)
+    # wandb.log({"cum_reward": wandb.Image(plt)})
     # print(len(loss))
     # # plt.ioff()
     # # plt.show(block=True)
     # # plt.savefig(results_dir + "/results.png")
     # plt.subplot(212)
-    # plt1.plot([x for x in loss])
-    # plt1.xlabel("steps@10")
-    # plt1.ylabel("loss")
+    # plt.plot([x for x in episode_loss])
+    # plt.xlabel("steps@10")
+    # plt.ylabel("loss")
     # # plt.ioff()
     # plt1.show(block=True)
-    # plt1.savefig(results_dir + "/results.png")
+    # plt.savefig(results_dir + "/results.png")

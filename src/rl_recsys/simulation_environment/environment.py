@@ -51,6 +51,9 @@ class MusicGym(gym.Env):
         # get feature of the selected document
         selected_doc_feature = doc_features[selected_doc_idx, :]
 
+        # self.p_uh = torch.Tensor(self.curr_user.update_state(selected_doc_feature)).to(
+        #     self.device
+        # )
         # compute the reward
         response = self.curr_user.response_model.generate_response(
             belief_state, selected_doc_feature

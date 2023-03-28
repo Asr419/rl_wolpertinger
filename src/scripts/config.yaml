@@ -12,11 +12,11 @@ parameters:
   num_episodes:
     value: 1000
   slate_size:
-    value: 5
+    value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 100
+    value: 500
   num_users:
     value: 500
   timing:
