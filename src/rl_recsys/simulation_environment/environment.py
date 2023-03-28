@@ -40,9 +40,9 @@ class MusicGym(gym.Env):
         doc_features = torch.Tensor(self.doc_catalogue.get_docs_features(slate)).to(
             device=self.device
         )
-        p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
+        # p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
         # select from the slate on item following the user choice model
-        self.curr_user.choice_model.score_documents(p_uh, doc_features)
+        self.curr_user.choice_model.score_documents(self.p_uh, doc_features)
         selected_doc_idx = self.curr_user.choice_model.choose_document()
 
         # ???
@@ -57,6 +57,7 @@ class MusicGym(gym.Env):
         )
         # update the budget
         self.curr_user.update_budget_avg()
+        # self.curr_user.update_budget(response)
 
         is_terminal = self.curr_user.is_terminal()
         info = {}
@@ -66,6 +67,7 @@ class MusicGym(gym.Env):
         # initialize an episode by setting the user and the candidate documents
         user = self.user_sampler.sample_user()
         self.curr_user = user
+        self.p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
         self.candidate_docs = self.rec_model.recommend(user.features, self.k)
 
     def render(self):

@@ -79,6 +79,7 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
     def soft_update_target_network(self):
         # Soft update of the target network's weights
         # θ′ ← τ θ + (1 −τ )θ′
+
         target_net_state_dict = self.target_net.state_dict()
         policy_net_state_dict = self.policy_net.state_dict()
         for key in policy_net_state_dict:

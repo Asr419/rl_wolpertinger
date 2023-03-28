@@ -4,6 +4,7 @@ from typing import Any, Callable, List, Type, TypeVar
 
 import numpy as np
 import numpy.typing as npt
+import torch
 
 from rl_recsys.user_modeling.choice_model import AbstractChoiceModel
 from rl_recsys.user_modeling.features_gen import AbstractFeaturesGenerator
@@ -25,10 +26,9 @@ class UserModel:
         user_state_model: user_state_model_type,
         user_choice_model: user_choice_model_type,
         user_response_model: user_response_model_type,
-        songs_per_sess: int = 15,
+        songs_per_sess: int = 20,
         avg_song_duration: float = 207467.0,
     ) -> None:
-        self.budget = songs_per_sess * avg_song_duration
         self.state_model = user_state_model
         self.choice_model = user_choice_model
         self.response_model = user_response_model
@@ -36,6 +36,10 @@ class UserModel:
 
         self.song_per_sess = songs_per_sess
         self.avg_song_duration = avg_song_duration
+
+        # initialized by init budget
+        self.budget = None
+        self.init_budget()
 
     @property
     def features(self) -> npt.NDArray[np.float_]:
@@ -47,11 +51,23 @@ class UserModel:
     def is_terminal(self) -> bool:
         return self.budget <= 0
 
-    def update_budget(self, selected_doc_duration: float) -> None:
-        self.budget -= selected_doc_duration
+    def update_budget(self, response: float) -> None:
+        depreciate = self.avg_song_duration * (
+            self.response_model.Amplifier() / response
+        )
+        self.budget -= depreciate
+
+    def init_budget(self) -> None:
+        self.budget = self.song_per_sess * self.avg_song_duration
 
     def update_budget_avg(self) -> None:
         self.budget -= self.avg_song_duration
+
+    def update_state(self, x: torch.Tensor):
+        x = x.cpu().detach().numpy()
+
+        self.state_model.user_state = np.mean([self.state_model.user_state, x], axis=0)
+        return self.state_model.user_state
 
 
 class UserSampler:

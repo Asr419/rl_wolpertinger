@@ -35,6 +35,7 @@ class AlphaIntentUserState(AbstractUserState):
         user_state = user_features.copy()
         # sample alpha from a uniform distribution
         alpha = np.random.uniform(0, 1)
+        # alpha = 1
         inv_alpha = 1 - alpha
 
         # creating tgt feature mask and inverse mask

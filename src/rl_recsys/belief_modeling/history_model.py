@@ -5,6 +5,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+K = 6
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
     """Modeling session history information."""
 
@@ -36,14 +40,19 @@ class AvgHistoryModel(AbstractHistoryModel):
 
     def _init_history_vector(self) -> torch.Tensor:
         # initialize the history vector with zeros
-        return torch.zeros(self.num_doc_features)
+        return torch.zeros(self.num_doc_features).unsqueeze(0)
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
         # TODO: wronggggg
-        hist_vec = (self.history_vec + observation) / 2
-        std_hist_vec = (hist_vec - torch.mean(hist_vec)) / torch.std(hist_vec)
-        self.history_vec = std_hist_vec
+        self.history_vec = torch.cat(
+            (self.history_vec, observation.unsqueeze(0)), dim=0
+        )
+        history_retained = self.history_vec[-K:]
+        std_hist_vec = torch.mean(history_retained, dim=0)
+        # hist_vec = (self.history_vec + observation) / 2
+        # std_hist_vec = (hist_vec - torch.mean(hist_vec)) / torch.std(hist_vec)
+        # self.history_vec = std_hist_vec
         return std_hist_vec
 
 
@@ -65,7 +74,7 @@ class GRUModel(AbstractHistoryModel):
         self.fc = nn.Linear(hidden_size, output_size)
 
         # Initialize buffer
-        self.buffer = torch.zeros((1, 1, num_doc_features))
+        self.buffer = torch.zeros((1, 1, num_doc_features)).to(DEVICE)
         self.buffer_size = 100
 
     def _init_history_vector(self) -> torch.Tensor:
@@ -74,13 +83,13 @@ class GRUModel(AbstractHistoryModel):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Concatenate buffer and input
-        x = torch.cat((self.buffer, x), dim=1)
+        x = torch.cat((self.buffer, x.unsqueeze(0).unsqueeze(0)), dim=1).to(DEVICE)
 
         # Update buffer
         self.buffer = x[:, -self.buffer_size :, :]
 
         # Forward pass through GRU and fully connected layers
         out, _ = self.gru(x)
-        hist_vec = self.fc(out[:, -1, :])
-
+        hist_vec = self.fc(out[:, -1, :]).squeeze(0)
+        # print(hist_vec)
         return hist_vec

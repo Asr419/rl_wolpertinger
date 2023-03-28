@@ -1,0 +1,31 @@
+name: run_simulation
+program: run_simulation.py
+parameters:
+  batch_size:
+    value: 128
+  gamma:
+    value: 1.0
+  tau:
+    value: 0.001
+  lr:
+    value: 1e-4
+  num_episodes:
+    value: 1000
+  slate_size:
+    value: 5
+  num_item_features:
+    value: 14
+  num_candidates:
+    value: 100
+  num_users:
+    value: 500
+  timing:
+    value: False
+  state_model_cls:
+    value: AlphaIntentUserState
+  choice_model_cls:
+    value: DotProductChoiceModel
+  response_model_cls:
+    value: CosineResponseModel
+  choice_model:
+    value: DotProductChoiceModel
