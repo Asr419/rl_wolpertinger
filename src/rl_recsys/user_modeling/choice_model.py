@@ -48,7 +48,8 @@ class NormalizableChoiceModel(AbstractChoiceModel):
             self._scores is not None
         ), "Scores are not computed yet. call score_documents() first."
         all_scores = self._scores
-        if torch.any(all_scores >= 0.9):
+        # if torch.all(torch.ge(all_scores, -0.2)):
+        if torch.any(all_scores >= 0.0):
             all_probs = torch.softmax(all_scores, dim=0)
             # select index according to the probability distribution with pytorch
             selected_index = torch.multinomial(all_probs, 1).item()

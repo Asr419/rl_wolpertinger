@@ -50,22 +50,30 @@ class MusicGym(gym.Env):
         doc_id = slate[selected_doc_idx]
 
         # get feature of the selected document
-        if selected_doc_idx < 0:
+        if selected_doc_idx > 0:
             selected_doc_feature = doc_features[selected_doc_idx, :]
         else:
             selected_doc_feature = torch.zeros(14)
 
-        # self.p_uh = torch.Tensor(self.curr_user.update_state(selected_doc_feature)).to(
-        #     self.device
-        # )
-        # compute the reward
-        response = self.curr_user.response_model.generate_response(
-            belief_state, selected_doc_feature
+        self.p_uh = torch.Tensor(self.curr_user.update_state(selected_doc_feature)).to(
+            self.device
         )
-        if response >= 5:
-            response = torch.tensor(1.0)
+        # compute the reward
+        if torch.any(selected_doc_feature != 0):
+            response = self.curr_user.response_model.generate_response(
+                self.p_uh, selected_doc_feature
+            )
+
         else:
-            response = torch.tensor(0.0)
+            response = torch.tensor(-10.0)
+
+        # response = self.curr_user.response_model.generate_response(
+        #     belief_state, selected_doc_feature
+        # )
+        # if response >= 7:
+        #     response = response
+        # else:
+        #     response = torch.tensor(-10.0)
         # update the budget
         # self.curr_user.update_budget_avg()
         self.curr_user.update_budget(response)

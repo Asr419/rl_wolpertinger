@@ -8,9 +8,9 @@ parameters:
   tau:
     value: 0.001
   lr:
-    value: 1e-4
+    value: 1e-5
   num_episodes:
-    value: 300
+    value: 1500
   slate_size:
     value: 10
   num_item_features:
