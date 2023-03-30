@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
     is_terminal = False
     b_u = None
-    Actor = WolpertingerActor()
+    Actor = WolpertingerActor(nn_dim=[14, 14], k=30)
 
     # store history of loss and reward
     # loss_history = []
@@ -229,7 +229,7 @@ if __name__ == "__main__":
 
         while not is_terminal:
             # for t in count():
-            candidate_docs_repr = Actor.k_nearest(b_u, candidate_docs_repr, k=50)
+            candidate_docs_repr = Actor.k_nearest(b_u, candidate_docs_repr)
             with torch.no_grad():
                 # Todo: np array into tensor
 

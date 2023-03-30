@@ -46,7 +46,7 @@ class DQNnet(nn.Module):
 
     def forward(self, x):
         for layer in self.layers:
-            x = F.relu(layer(x))
+            x = F.leaky_relu(layer(x))
         return x
 
 

@@ -82,7 +82,7 @@ class GRUModel(AbstractHistoryModel):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Concatenate buffer and input
-        x = torch.cat((self.buffer, x.unsqueeze(0).unsqueeze(0)), dim=1).to(DEVICE)
+        x = torch.stack(x).unsqueeze(dim=1)
 
         # Update buffer
         self.buffer = x[:, -self.buffer_size :, :]
