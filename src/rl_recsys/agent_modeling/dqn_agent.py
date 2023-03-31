@@ -5,29 +5,52 @@ from collections import deque, namedtuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset
 
 from rl_recsys.agent_modeling.agent import AbstractSlateAgent
 
-Transition = namedtuple(
-    "Transition",
-    ("state", "selected_doc_feat", "reward", "next_state", "candidates_docs"),
-)
 
-
-class ReplayMemory:
+class ReplayMemoryDataset(Dataset):
     def __init__(self, capacity):
+        self.capacity = capacity
         self.memory = deque([], maxlen=capacity)
+        self.Transition = namedtuple(
+            "Transition",
+            ("state", "selected_doc_feat", "candidates_docs", "reward", "next_state"),
+        )
 
     def push(self, *args):
         """Save a transition"""
-        self.memory.append(Transition(*args))
+        self.memory.append(self.Transition(*args))
 
-    def sample(self, batch_size):
-        batch = random.sample(self.memory, batch_size)
-        return batch
+    def __getitem__(self, index):
+        return self.memory[index]
 
     def __len__(self):
         return len(self.memory)
+
+
+def replay_memory_collate_fn(batch):
+    Transition = namedtuple(
+        "Transition",
+        ("state", "selected_doc_feat", "candidates_docs", "reward", "next_state"),
+    )
+
+    transitions_batch = Transition(*zip(*batch))
+
+    state_batch = torch.stack(transitions_batch.state)
+    selected_doc_feat_batch = torch.stack(transitions_batch.selected_doc_feat)
+    next_state_batch = torch.stack(transitions_batch.next_state)
+    candidates_batch = torch.stack(transitions_batch.candidates_docs)
+    reward_batch = torch.stack(transitions_batch.reward)
+
+    return (
+        state_batch,
+        selected_doc_feat_batch,
+        candidates_batch,
+        reward_batch,
+        next_state_batch,
+    )
 
 
 class DQNnet(nn.Module):

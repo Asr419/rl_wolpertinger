@@ -65,7 +65,7 @@ class MusicGym(gym.Env):
             )
 
         else:
-            response = torch.tensor(-10.0)
+            response = torch.tensor(-10.0).to(device=self.device)
 
         # response = self.curr_user.response_model.generate_response(
         #     belief_state, selected_doc_feature
