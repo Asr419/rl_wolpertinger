@@ -51,23 +51,17 @@ class UserModel:
         return self.budget <= 0
 
     def update_budget(self, response: float) -> None:
-        if response == -10.0:
-            depreciate = self.avg_song_duration * 1.5
+        if response < 0.0:
+            depreciation = self.avg_song_duration * 1.5
         else:
-            depreciate = 0.5 * self.avg_song_duration
-        self.budget -= depreciate
+            depreciation = self.avg_song_duration * 0.5
+        self.budget -= depreciation
 
-    def init_budget(self) -> None:
+    def init_budget(self) -> float:
         return self.song_per_sess * self.avg_song_duration
 
     def update_budget_avg(self) -> None:
         self.budget -= self.avg_song_duration
-
-    def update_state(self, x: torch.Tensor):
-        x = x.cpu().detach().numpy()
-
-        self.state_model.user_state = np.mean([self.state_model.user_state, x], axis=0)
-        return self.state_model.user_state
 
 
 class UserSampler:
@@ -95,7 +89,7 @@ class UserSampler:
         # initialize models
         state_model = self.state_model_cls(user_features=user_features)
         choice_model = self.choice_model_cls()
-        response_model = self.response_model_cls(user_state=state_model.user_state)
+        response_model = self.response_model_cls()
 
         user = UserModel(
             user_features=user_features,

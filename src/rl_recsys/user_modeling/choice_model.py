@@ -1,5 +1,6 @@
 # implement user choice model
 import abc
+from dataclasses import dataclass
 from typing import Any, Callable, Type, TypeVar
 
 import numpy as np
@@ -43,20 +44,25 @@ class AbstractChoiceModel(metaclass=abc.ABCMeta):
 class NormalizableChoiceModel(AbstractChoiceModel):
     """A normalizable choice model."""
 
+    def __init__(
+        self, satisfaction_threshold: float = 0.0, no_selection_token: int = -1
+    ) -> None:
+        self.satisfaction_threshold = satisfaction_threshold
+        self.no_selection_token = no_selection_token
+
     def choose_document(self) -> int:
         assert (
             self._scores is not None
         ), "Scores are not computed yet. call score_documents() first."
         all_scores = self._scores
-        # if torch.all(torch.ge(all_scores, -0.2)):
-        if torch.any(all_scores >= 0.0):
+
+        # -1 indicates no document is selected
+        selected_index = self.no_selection_token
+        if torch.any(all_scores >= self.satisfaction_threshold):
             all_probs = torch.softmax(all_scores, dim=0)
             # select index according to the probability distribution with pytorch
-            selected_index = torch.multinomial(all_probs, 1).item()
-            return selected_index
-        else:
-            selected_index = -1
-            return selected_index
+            selected_index = int(torch.multinomial(all_probs, 1).item())
+        return selected_index
 
     @abc.abstractmethod
     def _score_documents(
@@ -70,26 +76,11 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         self._scores = logits
 
 
-# class MultinomialLogitChoiceModel(NormalizableChoiceModel):
-#     """A multinomial logit choice model.
-
-#     Samples item x in scores according to p(x) = exp(x) / Sum_{y in scores} exp(y)
-#     """
-
-#     @abc.abstractmethod
-#     def _score_documents(
-#         self, user_state: torch.Tensor, docs_repr: torch.Tensor
-#     ) -> torch.Tensor:
-#         pass
-
-#     def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
-#         logits = self._score_documents(user_state, docs_repr)
-#         # Use softmax scores instead of exponential scores to avoid overflow.
-#         self._scores = torch.softmax(logits, dim=0)
-
-
 class DotProductChoiceModel(NormalizableChoiceModel):
     """A multinomial logit choice model with dot product as the scoring function."""
+
+    def __init__(self, satisfaction_threshold: float = 0.0) -> None:
+        super().__init__(satisfaction_threshold)
 
     def _score_documents(
         self, user_state: torch.Tensor, docs_repr: torch.Tensor
@@ -99,6 +90,9 @@ class DotProductChoiceModel(NormalizableChoiceModel):
 
 class CosineSimilarityChoiceModel(NormalizableChoiceModel):
     """A multinomial logit choice model with cosine similarity as the scoring function."""
+
+    def __init__(self, satisfaction_threshold: float = 0.0) -> None:
+        super().__init__(satisfaction_threshold)
 
     def _score_documents(
         self, user_state: torch.Tensor, docs_repr: torch.Tensor

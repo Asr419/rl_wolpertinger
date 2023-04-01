@@ -55,8 +55,8 @@ NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
 NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
 NUM_USERS = config["parameters"]["num_users"]["value"]
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# DEVICE = "cpu"
+# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         "DotProductChoiceModel": DotProductChoiceModel,
         "CosineResponseModel": CosineResponseModel,
         "CosineSimilarityChoiceModel": CosineSimilarityChoiceModel,
-        "choice_model": DotProductResponseModel,
+        "DotProductResponseModel": DotProductResponseModel,
     }
 
     state_model_cls = config["parameters"]["state_model_cls"]["value"]
@@ -131,8 +131,13 @@ if __name__ == "__main__":
     response_model_cls = config["parameters"]["response_model_cls"]["value"]
     response_model_cls = class_name_to_class[response_model_cls]
 
+    satisfaction_threshold = config["parameters"]["satisfaction_threshold"]["value"]
     choice_model_class = config["parameters"]["choice_model"]["value"]
-    choice_model = class_name_to_class[choice_model_class]()
+    choice_model = class_name_to_class[choice_model_class](
+        satisfaction_threshold=satisfaction_threshold
+    )
+
+    satisfaction_threshold = config["parameters"]["satisfaction_threshold"]["value"]
 
     user_sampler = UserSampler(
         feat_gen, state_model_cls, choice_model_cls, response_model_cls
@@ -189,8 +194,8 @@ if __name__ == "__main__":
         ).to(DEVICE)
 
         # initialize b_u with user features
-        # b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-        b_u = torch.randn(14).to(DEVICE)
+        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        # b_u = torch.randn(14).to(DEVICE)
 
         while not is_terminal:
             with torch.no_grad():
@@ -211,7 +216,6 @@ if __name__ == "__main__":
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
 
-                selected_doc_feature = torch.Tensor(selected_doc_feature).to(DEVICE)
                 b_u_next = bf_agent.update_belief(selected_doc_feature)
 
                 # push memory

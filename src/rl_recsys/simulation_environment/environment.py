@@ -49,33 +49,25 @@ class MusicGym(gym.Env):
         # ???
         doc_id = slate[selected_doc_idx]
 
-        # get feature of the selected document
-        if selected_doc_idx > 0:
-            selected_doc_feature = doc_features[selected_doc_idx, :]
+        # check if user has selected a document
+        response = None
+        selected_doc_feature = None
+        if selected_doc_idx == self.curr_user.choice_model.no_selection_token:
+            response = self.curr_user.response_model.generate_null_response().to(
+                device=self.device
+            )
+            selected_doc_feature = torch.zeros(14).to(self.device)
         else:
-            selected_doc_feature = torch.zeros(14)
-
-        self.p_uh = torch.Tensor(self.curr_user.update_state(selected_doc_feature)).to(
-            self.device
-        )
-        # compute the reward
-        if torch.any(selected_doc_feature != 0):
+            selected_doc_feature = doc_features[selected_doc_idx, :]
             response = self.curr_user.response_model.generate_response(
                 self.p_uh, selected_doc_feature
             )
 
-        else:
-            response = torch.tensor(-10.0).to(device=self.device)
+            # transition to the next state only if the user has selected a document
+            self.curr_user.state_model.update_state(
+                selected_doc_feature=selected_doc_feature
+            )
 
-        # response = self.curr_user.response_model.generate_response(
-        #     belief_state, selected_doc_feature
-        # )
-        # if response >= 7:
-        #     response = response
-        # else:
-        #     response = torch.tensor(-10.0)
-        # update the budget
-        # self.curr_user.update_budget_avg()
         self.curr_user.update_budget(response)
 
         is_terminal = self.curr_user.is_terminal()
@@ -87,14 +79,11 @@ class MusicGym(gym.Env):
         user = self.user_sampler.sample_user()
         self.curr_user = user
         user.budget = user.init_budget()
-        self.p_uh = torch.Tensor(self.curr_user.get_state()).to(self.device)
+        self.p_uh = self.curr_user.get_state().to(self.device)
         self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
 
     def render(self):
         raise NotImplementedError()
-
-    def get_curr_state(self) -> npt.NDArray[np.float_]:
-        return self.curr_user.get_state()
 
     def get_candidate_docs(self) -> npt.NDArray[np.int_]:
         return np.array(self.candidate_docs)

@@ -1,6 +1,8 @@
 name: run_simulation
 program: run_simulation.py
 parameters:
+  satisfaction_threshold:
+    value: 0.0
   batch_size:
     value: 128
   gamma:
@@ -19,8 +21,6 @@ parameters:
     value: 200
   num_users:
     value: 500
-  timing:
-    value: False
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
