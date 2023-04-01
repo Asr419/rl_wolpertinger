@@ -228,10 +228,11 @@ if __name__ == "__main__":
                 )
                 b_u = b_u_next
                 # accumulate reward for each episode
+                # print(response)
                 reward.append(response)
 
             # optimize model
-            if len(replay_memory_dataset.memory) >= BATCH_SIZE:
+            if len(replay_memory_dataset.memory) >= 1 * BATCH_SIZE:
                 # get a batch of transitions from the replay buffer
                 batch = next(iter(replay_memory_dataloader))
                 for elem in batch:
@@ -246,7 +247,7 @@ if __name__ == "__main__":
         ep_reward = torch.sum(torch.tensor(reward))
 
         log_dit = {"cum_reward": ep_reward, "avg_reward": ep_avg_reward}
-        if len(replay_memory_dataset.memory) >= (BATCH_SIZE):
+        if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
 
         wandb.log(log_dit, step=i_episode)

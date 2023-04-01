@@ -18,7 +18,12 @@ class ContentSimilarityRec:
         # compute the similarity between the user and the items
         # and return the top k items
         scores = np.dot(user_features, self.item_feature_matrix.T)
-        top_k_items = np.argsort(scores)[-k:]
+        norms = np.linalg.norm(user_features) * np.linalg.norm(
+            self.item_feature_matrix, axis=1
+        )
+        cos_scores = scores / norms
+        top_k_items = np.argsort(cos_scores)[-k:]
+        print(cos_scores.max())
         return np.array(top_k_items.tolist())
 
     def recommend_random(

@@ -8,19 +8,19 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.001
+    value: 0.005
   lr:
-    value: 1e-5
+    value: 1e-4
   num_episodes:
     value: 1500
   slate_size:
-    value: 10
+    value: 5
   num_item_features:
     value: 14
   num_candidates:
-    value: 200
+    value: 5
   num_users:
-    value: 500
+    value: 1000
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:

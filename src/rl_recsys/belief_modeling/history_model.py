@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 K = 6
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -44,13 +43,13 @@ class AvgHistoryModel(AbstractHistoryModel):
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
-        self.history_vec = torch.cat(
-            (self.history_vec, observation.unsqueeze(0)), dim=0
-        )
-        history_retained = self.history_vec[-K:]
-        std_hist_vec = torch.mean(history_retained, dim=0)
+        # self.history_vec = torch.cat(
+        #     (self.history_vec, observation.unsqueeze(0)), dim=0
+        # )
+        # history_retained = self.history_vec[-K:]
+        # std_hist_vec = torch.mean(history_retained, dim=0)
 
-        # std_hist_vec = torch.randn(14)
+        std_hist_vec = observation
 
         return std_hist_vec
 

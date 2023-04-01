@@ -59,17 +59,20 @@ class DQNnet(nn.Module):
         super(DQNnet, self).__init__()
 
         self.layers = nn.ModuleList()
-        # Add input layer
-        self.layers.append(nn.Linear(input_size, hidden_dims[0]))
-        # Add hidden layers
-        for i in range(len(hidden_dims) - 1):
-            self.layers.append(nn.Linear(hidden_dims[i], hidden_dims[i + 1]))
-        # Add output layer
-        self.layers.append(nn.Linear(hidden_dims[-1], output_size))
+
+        # create layers based on hidden_dims
+        prev_dim = input_size
+        for dim in hidden_dims:
+            self.layers.append(nn.Linear(prev_dim, dim))
+            prev_dim = dim
+        # add last layer
+        self.layers.append(nn.Linear(prev_dim, output_size))
 
     def forward(self, x):
-        for layer in self.layers:
-            x = F.leaky_relu(layer(x))
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+            if i != len(self.layers) - 1:
+                x = F.leaky_relu(x)
         return x
 
 
@@ -79,8 +82,8 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         slate_gen,
         input_size: int,
         output_size: int,
-        hidden_dims: list[int] = [8, 4],
-        tau: float = 0.005,
+        hidden_dims: list[int] = [14, 7],
+        tau: float = 0.001,
     ) -> None:
         # init super classes
         AbstractSlateAgent.__init__(self, slate_gen)

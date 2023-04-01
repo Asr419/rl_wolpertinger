@@ -57,11 +57,21 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         all_scores = self._scores
 
         # -1 indicates no document is selected
-        selected_index = self.no_selection_token
-        if torch.any(all_scores >= self.satisfaction_threshold):
-            all_probs = torch.softmax(all_scores, dim=0)
-            # select index according to the probability distribution with pytorch
-            selected_index = int(torch.multinomial(all_probs, 1).item())
+        # selected_index = self.no_selection_token
+        # if torch.any(all_scores >= self.satisfaction_threshold):
+        #     all_probs = torch.softmax(all_scores, dim=0)
+        #     # select index according to the probability distribution with pytorch
+        #     selected_index = int(torch.multinomial(all_probs, 1).item())
+
+        # all_probs = torch.softmax(all_scores, dim=0)
+        # select index relate to maximum in all_probs
+
+        all_probs = all_scores
+        selected_index = int(torch.argmax(all_probs, dim=0).item())
+
+        # select index according to the probability distribution with pytorch
+        # selected_index = torch.multinomial(all_probs, 1).item()
+
         return selected_index
 
     @abc.abstractmethod
@@ -72,8 +82,12 @@ class NormalizableChoiceModel(AbstractChoiceModel):
 
     def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
         logits = self._score_documents(user_state, docs_repr)
+        # normalize logits sum to 1
         # Use softmax scores instead of exponential scores to avoid overflow.
-        self._scores = logits
+
+        # F.normalize(logits, dim=0)
+        # (logits - logits.min()) / (logits.max() - logits.min())
+        self._scores = torch.softmax(logits, dim=0)
 
 
 class DotProductChoiceModel(NormalizableChoiceModel):
