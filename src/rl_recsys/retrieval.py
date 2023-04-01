@@ -23,7 +23,6 @@ class ContentSimilarityRec:
         )
         cos_scores = scores / norms
         top_k_items = np.argsort(cos_scores)[-k:]
-        print(cos_scores.max())
         return np.array(top_k_items.tolist())
 
     def recommend_random(

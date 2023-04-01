@@ -38,9 +38,9 @@ class MusicGym(gym.Env):
 
         # retrieving fetaures of the slate documents
         slate_doc_ids = self.candidate_docs[slate]
-        doc_features = torch.Tensor(self.doc_catalogue.get_docs_features(slate_doc_ids)).to(
-            device=self.device
-        )
+        doc_features = torch.Tensor(
+            self.doc_catalogue.get_docs_features(slate_doc_ids)
+        ).to(device=self.device)
 
         # select from the slate on item following the user choice model
         self.curr_user.choice_model.score_documents(self.p_uh, doc_features)

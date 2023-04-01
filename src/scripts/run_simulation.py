@@ -197,6 +197,18 @@ if __name__ == "__main__":
         b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
         # b_u = torch.randn(14).to(DEVICE)
 
+        print(
+            torch.nn.functional.cosine_similarity(
+                env.curr_user.get_state(), candidate_docs_repr, dim=1
+            ).max()
+        )
+
+        print(
+            torch.nn.functional.cosine_similarity(
+                env.curr_user.get_state(), candidate_docs_repr, dim=1
+            ).mean()
+        )
+
         while not is_terminal:
             with torch.no_grad():
                 b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))

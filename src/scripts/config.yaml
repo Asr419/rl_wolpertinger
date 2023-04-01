@@ -18,7 +18,7 @@ parameters:
   num_item_features:
     value: 14
   num_candidates:
-    value: 5
+    value: 200
   num_users:
     value: 1000
   state_model_cls:
