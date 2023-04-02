@@ -65,12 +65,12 @@ class MusicGym(gym.Env):
             )
 
         # transition to the next state only if the user has selected a document
-        # self.curr_user.state_model.update_state(
-        #     selected_doc_feature=selected_doc_feature
-        # )
+        self.curr_user.state_model.update_state(
+            selected_doc_feature=selected_doc_feature
+        )
 
-        # self.curr_user.update_budget(response)
-        self.curr_user.update_budget_avg()
+        self.curr_user.update_budget(response)
+        # self.curr_user.update_budget_avg()
 
         is_terminal = self.curr_user.is_terminal()
         info = {}
@@ -83,7 +83,7 @@ class MusicGym(gym.Env):
         user.budget = user.init_budget()
         self.p_uh = self.curr_user.get_state().to(self.device)
         # self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
-        self.candidate_docs = self.rec_model.recommend(user.features, self.k)
+        self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
 
     def render(self):
         raise NotImplementedError()

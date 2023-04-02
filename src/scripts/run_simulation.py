@@ -202,12 +202,18 @@ if __name__ == "__main__":
                 env.curr_user.get_state(), candidate_docs_repr, dim=1
             ).max()
         )
+        best = torch.nn.functional.cosine_similarity(
+            env.curr_user.get_state(), candidate_docs_repr, dim=1
+        ).max()
 
         print(
             torch.nn.functional.cosine_similarity(
                 env.curr_user.get_state(), candidate_docs_repr, dim=1
             ).mean()
         )
+        best_avg = torch.nn.functional.cosine_similarity(
+            env.curr_user.get_state(), candidate_docs_repr, dim=1
+        ).mean()
 
         while not is_terminal:
             with torch.no_grad():
@@ -228,7 +234,10 @@ if __name__ == "__main__":
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
 
-                b_u_next = bf_agent.update_belief(selected_doc_feature)
+                if torch.any(selected_doc_feature != 0):
+                    b_u_next = bf_agent.update_belief(selected_doc_feature)
+                else:
+                    b_u_next = b_u
 
                 # push memory
                 replay_memory_dataset.push(
@@ -257,9 +266,17 @@ if __name__ == "__main__":
 
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_reward = torch.sum(torch.tensor(reward))
+        best1 = best * 10 - ep_avg_reward
+        best_avg1 = ep_avg_reward - best_avg * 10
+        print(best1)
 
-        log_dit = {"cum_reward": ep_reward, "avg_reward": ep_avg_reward}
-        if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
+        log_dit = {
+            "cum_reward": ep_reward,
+            "avg_reward": ep_avg_reward,
+            "best_achievable": best1,
+            "best_average": best_avg1,
+        }
+        if len(replay_memory_dataset.memory) >= (2 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
 
         wandb.log(log_dit, step=i_episode)
@@ -267,7 +284,7 @@ if __name__ == "__main__":
         print(
             "Loss: {}, Reward: {}, Cum_Rew: {}".format(
                 torch.mean(torch.tensor(loss)),
-                torch.mean(torch.tensor(reward)),
-                torch.sum(torch.tensor(reward)),
+                ep_avg_reward,
+                ep_reward,
             )
         )

@@ -17,9 +17,14 @@ class AbstractUserState(metaclass=abc.ABCMeta):
         pass
 
     def update_state(self, selected_doc_feature: torch.Tensor) -> None:
-        self.user_state = torch.mean(
-            torch.stack((selected_doc_feature, self.user_state)), dim=0
-        )
+        if torch.any(selected_doc_feature != 0):
+            w = 0.9
+            self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
+        else:
+            self.user_state = self.user_state
+        # self.user_state = torch.mean(
+        #     torch.stack((selected_doc_feature, self.user_state)), dim=0
+        # )
 
 
 class AlphaIntentUserState(AbstractUserState):
@@ -41,9 +46,9 @@ class AlphaIntentUserState(AbstractUserState):
     def generate_state(self, user_features: npt.NDArray[np.float_]) -> torch.Tensor:
         user_state = torch.Tensor(user_features).clone()
         # sample alpha from a uniform distribution
-        # alpha = torch.rand(1)
-        # alpha = 0.8 * alpha + 0.2  # alpha between 0.2 and 1
-        alpha = 0.8
+        alpha = torch.rand(1)
+        alpha = 0.8 * alpha + 0.2  # alpha between 0.2 and 1
+        # alpha = 0.8
         inv_alpha = 1 - alpha
 
         # creating tgt feature mask and inverse mask

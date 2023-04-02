@@ -45,7 +45,7 @@ class NormalizableChoiceModel(AbstractChoiceModel):
     """A normalizable choice model."""
 
     def __init__(
-        self, satisfaction_threshold: float = 0.0, no_selection_token: int = -1
+        self, satisfaction_threshold: float = 0.2, no_selection_token: int = -1
     ) -> None:
         self.satisfaction_threshold = satisfaction_threshold
         self.no_selection_token = no_selection_token
@@ -57,17 +57,17 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         all_scores = self._scores
 
         # -1 indicates no document is selected
-        # selected_index = self.no_selection_token
-        # if torch.any(all_scores >= self.satisfaction_threshold):
-        #     all_probs = torch.softmax(all_scores, dim=0)
-        #     # select index according to the probability distribution with pytorch
-        #     selected_index = int(torch.multinomial(all_probs, 1).item())
+        selected_index = self.no_selection_token
+        if torch.any(all_scores >= self.satisfaction_threshold):
+            all_probs = torch.softmax(all_scores, dim=0)
+            # select index according to the probability distribution with pytorch
+            selected_index = int(torch.multinomial(all_probs, 1).item())
 
         # all_probs = torch.softmax(all_scores, dim=0)
         # select index relate to maximum in all_probs
 
-        all_probs = all_scores
-        selected_index = int(torch.argmax(all_probs, dim=0).item())
+        # all_probs = all_scores
+        # selected_index = int(torch.argmax(all_probs, dim=0).item())
 
         # select index according to the probability distribution with pytorch
         # selected_index = torch.multinomial(all_probs, 1).item()

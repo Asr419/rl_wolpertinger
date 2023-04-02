@@ -30,4 +30,4 @@ parameters:
   choice_model:
     value: CosineSimilarityChoiceModel
   model:
-    value: SlateQ_Random
+    value: Wa_Random
