@@ -73,6 +73,9 @@ class UserSampler:
         state_model_cls: type[user_state_model_type],
         choice_model_cls: type[user_choice_model_type],
         response_model_cls: type[user_response_model_type],
+        state_model_kwargs: dict[str, Any] = {},
+        choice_model_kwargs: dict[str, Any] = {},
+        response_model_kwargs: dict[str, Any] = {},
         num_user_features: int = 14,
     ) -> None:
         self.state_model_cls = state_model_cls
@@ -81,6 +84,10 @@ class UserSampler:
         self.feature_gen = user_feature_gen
         self.num_user_features = num_user_features
 
+        self.state_model_kwargs = state_model_kwargs
+        self.choice_model_kwargs = choice_model_kwargs
+        self.response_model_kwargs = response_model_kwargs
+
         self.users: List[UserModel] = []
 
     def _generate_user(self) -> UserModel:
@@ -88,9 +95,11 @@ class UserSampler:
         user_features = self.feature_gen(num_features=self.num_user_features)
 
         # initialize models
-        state_model = self.state_model_cls(user_features=user_features)
-        choice_model = self.choice_model_cls()
-        response_model = self.response_model_cls()
+        state_model = self.state_model_cls(
+            user_features=user_features, **self.state_model_kwargs
+        )
+        choice_model = self.choice_model_cls(**self.choice_model_kwargs)
+        response_model = self.response_model_cls(**self.response_model_kwargs)
 
         user = UserModel(
             user_features=user_features,

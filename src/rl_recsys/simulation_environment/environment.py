@@ -63,11 +63,10 @@ class MusicGym(gym.Env):
             response = self.curr_user.response_model.generate_response(
                 self.p_uh, selected_doc_feature
             )
-
-        # transition to the next state only if the user has selected a document
-        self.curr_user.state_model.update_state(
-            selected_doc_feature=selected_doc_feature
-        )
+            # update user state
+            self.curr_user.state_model.update_state(
+                selected_doc_feature=selected_doc_feature
+            )
 
         self.curr_user.update_budget(response)
         # self.curr_user.update_budget_avg()

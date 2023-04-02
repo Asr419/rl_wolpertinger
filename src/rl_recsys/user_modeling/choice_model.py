@@ -9,12 +9,6 @@ import torch
 import torch.nn.functional as F
 
 
-def softmax(vector: npt.NDArray[np.float_]) -> npt.NDArray[np.float_]:
-    """Computes the softmax of a vector."""
-    normalized_vector = np.array(vector) - np.max(vector)  # For numerical stability
-    return np.exp(normalized_vector) / np.sum(np.exp(normalized_vector))
-
-
 # maybe the scoring function can be passed as a parameter
 class AbstractChoiceModel(metaclass=abc.ABCMeta):
     _scores = None
@@ -59,18 +53,14 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
         if torch.any(all_scores >= self.satisfaction_threshold):
-            all_probs = torch.softmax(all_scores, dim=0)
-            # select index according to the probability distribution with pytorch
-            selected_index = int(torch.multinomial(all_probs, 1).item())
-
-        # all_probs = torch.softmax(all_scores, dim=0)
-        # select index relate to maximum in all_probs
+            all_probs = all_scores
+            # select the item according to the probability distribution all_probs
+            selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
+            
+            # selected_index = int(torch.argmax(all_probs, dim=0).item())
 
         # all_probs = all_scores
         # selected_index = int(torch.argmax(all_probs, dim=0).item())
-
-        # select index according to the probability distribution with pytorch
-        # selected_index = torch.multinomial(all_probs, 1).item()
 
         return selected_index
 
@@ -84,9 +74,6 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         logits = self._score_documents(user_state, docs_repr)
         # normalize logits sum to 1
         # Use softmax scores instead of exponential scores to avoid overflow.
-
-        # F.normalize(logits, dim=0)
-        # (logits - logits.min()) / (logits.max() - logits.min())
         self._scores = torch.softmax(logits, dim=0)
 
 

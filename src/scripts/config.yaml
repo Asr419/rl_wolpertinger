@@ -1,8 +1,31 @@
 name: run_simulation
 program: run_simulation.py
 parameters:
+  ######## User related parameters ########
+  resp_amp_factor:
+    value: 10.0
   satisfaction_threshold:
     value: 0.0
+  state_update_rate:
+    value: 0.1
+  state_model_cls:
+    value: AlphaIntentUserState
+  choice_model_cls:
+    value: CosineSimilarityChoiceModel
+  response_model_cls:
+    value: CosineResponseModel
+  ######## Environment related parameters ########
+  num_users:
+    value: 1_000
+  slate_size:
+    value: 10
+  num_item_features:
+    value: 14
+  num_candidates:
+    value: 100
+  retrieval_model:
+    value: cosine
+  ######## Training related parameters ########
   batch_size:
     value: 128
   gamma:
@@ -13,21 +36,8 @@ parameters:
     value: 1e-4
   num_episodes:
     value: 1500
-  slate_size:
-    value: 10
-  num_item_features:
-    value: 14
-  num_candidates:
-    value: 200
-  num_users:
-    value: 1000
-  state_model_cls:
-    value: AlphaIntentUserState
-  choice_model_cls:
-    value: CosineSimilarityChoiceModel
-  response_model_cls:
-    value: CosineResponseModel
-  choice_model:
-    value: CosineSimilarityChoiceModel
+  ######## Models related parameters ########
   model:
     value: SlateQ_Random
+  history_model_cls:
+    value: AvgHistoryModel

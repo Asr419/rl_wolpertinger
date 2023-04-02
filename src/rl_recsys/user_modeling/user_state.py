@@ -8,8 +8,8 @@ import torch
 
 class AbstractUserState(metaclass=abc.ABCMeta):
     # hidden state of the user
-    def __init__(self, **kwds: Any) -> None:
-        self.user_state = self.generate_state(**kwds)
+    def __init__(self, state_update_rate: float, **kwds: Any) -> None:
+        self.state_update_rate = state_update_rate
 
     @abc.abstractmethod
     def generate_state(self, **kwds: Any) -> torch.Tensor:
@@ -17,18 +17,13 @@ class AbstractUserState(metaclass=abc.ABCMeta):
         pass
 
     def update_state(self, selected_doc_feature: torch.Tensor) -> None:
-        if torch.any(selected_doc_feature != 0):
-            w = 0.9
-            self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
-        else:
-            self.user_state = self.user_state
-        # self.user_state = torch.mean(
-        #     torch.stack((selected_doc_feature, self.user_state)), dim=0
-        # )
+        w = self.state_update_rate
+        self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
 
 
 class AlphaIntentUserState(AbstractUserState):
-    def __init__(self, user_features: torch.Tensor) -> None:
+    def __init__(self, user_features: torch.Tensor, **kwds: Any) -> None:
+        super().__init__(**kwds)
         # called p_u in the paper
         self.user_features = user_features
 
@@ -48,7 +43,7 @@ class AlphaIntentUserState(AbstractUserState):
         # sample alpha from a uniform distribution
         alpha = torch.rand(1)
         alpha = 0.8 * alpha + 0.2  # alpha between 0.2 and 1
-        # alpha = 0.8
+
         inv_alpha = 1 - alpha
 
         # creating tgt feature mask and inverse mask

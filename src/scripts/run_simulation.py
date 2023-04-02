@@ -32,28 +32,15 @@ from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--config",
-    type=str,
-    default="src/scripts/config.yaml",
-    help="Path to the config file.",
-)
-args = parser.parse_args()
+class_name_to_class = {
+    "AlphaIntentUserState": AlphaIntentUserState,
+    "DotProductChoiceModel": DotProductChoiceModel,
+    "CosineResponseModel": CosineResponseModel,
+    "CosineSimilarityChoiceModel": CosineSimilarityChoiceModel,
+    "DotProductResponseModel": DotProductResponseModel,
+    "AvgHistoryModel": AvgHistoryModel,
+}
 
-with open(args.config, "r") as f:
-    config = yaml.safe_load(f)
-wandb.init(project="rl_recsys", config=config["parameters"])
-
-BATCH_SIZE = config["parameters"]["batch_size"]["value"]
-GAMMA = config["parameters"]["gamma"]["value"]
-TAU = config["parameters"]["tau"]["value"]
-LR = float(config["parameters"]["lr"]["value"])
-NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
-SLATE_SIZE = config["parameters"]["slate_size"]["value"]
-NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
-NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
-NUM_USERS = config["parameters"]["num_users"]["value"]
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = "cpu"
@@ -104,6 +91,46 @@ def optimize_model(batch):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="src/scripts/config.yaml",
+        help="Path to the config file.",
+    )
+    args = parser.parse_args()
+
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+    wandb.init(project="rl_recsys", config=config["parameters"])
+
+    ######## User related parameters ########
+    state_model_cls = config["parameters"]["state_model_cls"]["value"]
+    choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
+    response_model_cls = config["parameters"]["response_model_cls"]["value"]
+
+    satisfaction_threshold = config["parameters"]["satisfaction_threshold"]["value"]
+    resp_amp_factor = config["parameters"]["resp_amp_factor"]["value"]
+    state_update_rate = config["parameters"]["state_update_rate"]["value"]
+
+    ######## Environment related parameters ########
+    SLATE_SIZE = config["parameters"]["slate_size"]["value"]
+    NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
+    NUM_USERS = config["parameters"]["num_users"]["value"]
+    NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
+    RETRIEVAL_MODEL = config["parameters"]["retrieval_model"]["value"]
+
+    ######## Training related parameters ########
+    BATCH_SIZE = config["parameters"]["batch_size"]["value"]
+    GAMMA = config["parameters"]["gamma"]["value"]
+    TAU = config["parameters"]["tau"]["value"]
+    LR = float(config["parameters"]["lr"]["value"])
+    NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+
+    ######## Models related parameters ########
+    history_model_cls = config["parameters"]["history_model_cls"]["value"]
+
+    ##################################################
     #################### CATALOGUE ###################
     data_df = load_spotify_data()
     doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
@@ -114,35 +141,27 @@ if __name__ == "__main__":
 
     ################## USER SAMPLER ###################
     feat_gen = NormalUserFeaturesGenerator()
-    class_name_to_class = {
-        "AlphaIntentUserState": AlphaIntentUserState,
-        "DotProductChoiceModel": DotProductChoiceModel,
-        "CosineResponseModel": CosineResponseModel,
-        "CosineSimilarityChoiceModel": CosineSimilarityChoiceModel,
-        "DotProductResponseModel": DotProductResponseModel,
-    }
-
-    state_model_cls = config["parameters"]["state_model_cls"]["value"]
     state_model_cls = class_name_to_class[state_model_cls]
-
-    choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
     choice_model_cls = class_name_to_class[choice_model_cls]
-
-    response_model_cls = config["parameters"]["response_model_cls"]["value"]
     response_model_cls = class_name_to_class[response_model_cls]
 
-    satisfaction_threshold = config["parameters"]["satisfaction_threshold"]["value"]
-    choice_model_class = config["parameters"]["choice_model"]["value"]
-    choice_model = class_name_to_class[choice_model_class](
-        satisfaction_threshold=satisfaction_threshold
-    )
-
-    satisfaction_threshold = config["parameters"]["satisfaction_threshold"]["value"]
+    state_model_kwgs = {"state_update_rate": state_update_rate}
+    choice_model_kwgs = {"satisfaction_threshold": satisfaction_threshold}
+    response_model_kwgs = {"amp_factor": resp_amp_factor}
 
     user_sampler = UserSampler(
-        feat_gen, state_model_cls, choice_model_cls, response_model_cls
+        feat_gen,
+        state_model_cls,
+        choice_model_cls,
+        response_model_cls,
+        state_model_kwargs=state_model_kwgs,
+        choice_model_kwargs=choice_model_kwgs,
+        response_model_kwargs=response_model_kwgs,
     )
     user_sampler.generate_users(num_users=NUM_USERS)
+
+    # TODO: dont really now why needed there we shold use the one associated to the user sampled for the episode
+    choice_model = choice_model_cls(satisfaction_threshold=satisfaction_threshold)
 
     env = MusicGym(
         user_sampler=user_sampler,
@@ -160,7 +179,8 @@ if __name__ == "__main__":
     agent = DQNAgent(
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
-    belief_model = AvgHistoryModel(num_doc_features=NUM_ITEM_FEATURES)
+    history_model_cls = class_name_to_class[history_model_cls]
+    belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
     # belief_model = GRUModel(
     #     num_doc_features=NUM_ITEM_FEATURES, hidden_size=14, output_size=14, num_layers=3
     # )
@@ -195,28 +215,17 @@ if __name__ == "__main__":
 
         # initialize b_u with user features
         b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-        # b_u = torch.randn(14).to(DEVICE)
-
-        print(
-            torch.nn.functional.cosine_similarity(
-                env.curr_user.get_state(), candidate_docs_repr, dim=1
-            ).max()
-        )
-        best = torch.nn.functional.cosine_similarity(
-            env.curr_user.get_state(), candidate_docs_repr, dim=1
-        ).max()
-
-        print(
-            torch.nn.functional.cosine_similarity(
-                env.curr_user.get_state(), candidate_docs_repr, dim=1
-            ).mean()
-        )
-        best_avg = torch.nn.functional.cosine_similarity(
-            env.curr_user.get_state(), candidate_docs_repr, dim=1
-        ).mean()
 
         while not is_terminal:
             with torch.no_grad():
+                # cos_sim = torch.nn.functional.cosine_similarity(
+                #     env.curr_user.get_state(), candidate_docs_repr, dim=1
+                # )
+                # print(cos_sim.max())
+                # print(cos_sim.min())
+                # print(cos_sim.mean())
+                # print("++++++++")
+
                 b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
 
                 q_val = bf_agent.agent.compute_q_values(
@@ -266,17 +275,12 @@ if __name__ == "__main__":
 
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_reward = torch.sum(torch.tensor(reward))
-        best1 = best * 10 - ep_avg_reward
-        best_avg1 = ep_avg_reward - best_avg * 10
-        print(best1)
 
         log_dit = {
             "cum_reward": ep_reward,
             "avg_reward": ep_avg_reward,
-            "best_achievable": best1,
-            "best_average": best_avg1,
         }
-        if len(replay_memory_dataset.memory) >= (2 * BATCH_SIZE):
+        if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
 
         wandb.log(log_dit, step=i_episode)
