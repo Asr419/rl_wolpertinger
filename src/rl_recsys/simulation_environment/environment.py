@@ -82,7 +82,7 @@ class MusicGym(gym.Env):
         user.budget = user.init_budget()
         self.p_uh = self.curr_user.get_state().to(self.device)
         # self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
-        self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
+        self.candidate_docs = self.rec_model.recommend(user.features, self.k)
 
     def render(self):
         raise NotImplementedError()

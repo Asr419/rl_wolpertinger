@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 K = 6
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu"
 
 
 class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
@@ -81,7 +82,8 @@ class GRUModel(AbstractHistoryModel):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Concatenate buffer and input
-        x = torch.stack(x).unsqueeze(dim=1)
+        x = x.unsqueeze(0).unsqueeze(0).to(device=DEVICE)
+        x = torch.cat([self.buffer, x], dim=1)
 
         # Update buffer
         self.buffer = x[:, -self.buffer_size :, :]

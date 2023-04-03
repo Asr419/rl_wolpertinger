@@ -27,6 +27,21 @@ class BeliefAgent(
     ) -> torch.Tensor:
         return self.agent.get_slate(docs_scores, docs_qvalues)
 
+    def get_diverse_action(
+        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
+    ) -> torch.Tensor:
+        return self.agent.get_diverse_slate(docs_scores, docs_qvalues)
+
+    def get_greedy_action(
+        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
+    ) -> torch.Tensor:
+        return self.agent.get_greedy_slate(docs_scores, docs_qvalues)
+
+    def get_optimal_action(
+        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
+    ) -> torch.Tensor:
+        return self.agent.get_optimal_slate(docs_scores, docs_qvalues)
+
 
 class AbstractSlateAgent(metaclass=abc.ABCMeta):
     # model an abstract agent recommending slates of documents
@@ -38,4 +53,32 @@ class AbstractSlateAgent(metaclass=abc.ABCMeta):
     ) -> torch.Tensor:
         """Get the action (slate) of the agent"""
         scores, ids = self.slate_gen(state, candidate_docs)
+        return ids
+
+    def get_diverse_slate(
+        self,
+        docs_scores: torch.Tensor,
+        docs_qvalues: torch.Tensor,
+        candidate_docs_repr: torch.Tensor,
+    ) -> torch.Tensor:
+        """Get the action (slate) of the agent"""
+        ids = self.slate_gen(docs_scores, docs_qvalues)
+        return ids
+
+    def get_greedy_slate(
+        self,
+        docs_scores: torch.Tensor,
+        docs_qvalues: torch.Tensor,
+    ) -> torch.Tensor:
+        """Get the action (slate) of the agent"""
+        ids = self.slate_gen(docs_scores, docs_qvalues)
+        return ids
+
+    def get_optimal_slate(
+        self,
+        docs_scores: torch.Tensor,
+        docs_qvalues: torch.Tensor,
+    ) -> torch.Tensor:
+        """Get the action (slate) of the agent"""
+        ids = self.slate_gen(docs_scores, docs_qvalues)
         return ids

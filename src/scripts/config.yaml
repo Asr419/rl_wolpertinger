@@ -7,7 +7,7 @@ parameters:
   satisfaction_threshold:
     value: 0.0
   state_update_rate:
-    value: 0.1
+    value: 0.9  
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -41,3 +41,7 @@ parameters:
     value: SlateQ_Random
   history_model_cls:
     value: AvgHistoryModel
+  slate_gen_model_cls:
+    value: OptimalSlateGenerator
+  get_action_fn:
+    value: get_optimal_action

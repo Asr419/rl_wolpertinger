@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 import wandb
 from rl_recsys.agent_modeling.agent import BeliefAgent
-from rl_recsys.agent_modeling.dqn_agent import (
-    DQNAgent,
+from rl_recsys.agent_modeling.sarsa_agent import (
+    SARSAAgent,
     ReplayMemoryDataset,
     replay_memory_collate_fn,
 )
@@ -62,10 +62,10 @@ def optimize_model(batch):
 
     (
         state_batch,  # [batch_size, num_item_features]
-        selected_doc_feat_batch,  # [batch_size, num_item_features]
-        candidates_batch,  # [batch_size, num_candidates, num_item_features]
+        selected_doc_feat_batch,  # [batch_size, num_item_features]  # [batch_size, num_candidates, num_item_features]
         reward_batch,  # [batch_size, 1]
         next_state_batch,  # [batch_size, num_item_features]
+        next_selected_doc_feat_batch,  # [batch,size, num_item_features]
     ) = batch
 
     # Q(s, a): [batch_size, 1]
@@ -74,23 +74,26 @@ def optimize_model(batch):
     )  # type: ignore
 
     # Q(s', a): [batch_size, 1]
-    cand_qtgt_list = []
-    for b in range(next_state_batch.shape[0]):
-        next_state = next_state_batch[b, :]
-        candidates = candidates_batch[b, :, :]
+    q_tgt = bf_agent.agent.compute_q_values(
+        next_state_batch, next_selected_doc_feat_batch, use_policy_net=True
+    )
+    # cand_qtgt_list = []
+    # for b in range(next_state_batch.shape[0]):
+    #     next_state = next_state_batch[b, :]
+    #     candidates = candidates_batch[b, :, :]
 
-        next_state_rep = next_state.repeat((candidates.shape[0], 1))
-        cand_qtgt = bf_agent.agent.compute_q_values(
-            next_state_rep, candidates, use_policy_net=False
-        )  # type: ignore
+    #     next_state_rep = next_state.repeat((candidates.shape[0], 1))
+    #     cand_qtgt = bf_agent.agent.compute_q_values(
+    #         next_state_rep, candidates, use_policy_net=False
+    #     )  # type: ignore
 
-        choice_model.score_documents(next_state, candidates)
-        # [num_candidates, 1]
-        scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
-        # max over Q(s', a)
-        cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+    #     choice_model.score_documents(next_state, candidates)
+    #     # [num_candidates, 1]
+    #     scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
+    #     # max over Q(s', a)
+    #     cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
-    q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
+    # q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
     expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
     loss = criterion(q_val, expected_q_values)
 
@@ -189,7 +192,7 @@ if __name__ == "__main__":
 
     # defining Belief Agent
     # input features are 2 * NUM_ITEM_FEATURES since we concatenate the state and one item
-    agent = DQNAgent(
+    agent = SARSAAgent(
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
     # history_model_cls = class_name_to_class[history_model_cls]
@@ -263,18 +266,33 @@ if __name__ == "__main__":
                     b_u_next = bf_agent.update_belief(selected_doc_feature)
                 else:
                     b_u_next = b_u
+                b_u_rep_next = b_u_next.repeat((candidate_docs_repr.shape[0], 1))
+                q_val = bf_agent.agent.compute_q_values(
+                    state=b_u_rep_next,
+                    candidate_docs_repr=candidate_docs_repr,
+                    use_policy_net=True,
+                )  # type: ignore
+                choice_model.score_documents(
+                    user_state=b_u_next, docs_repr=candidate_docs_repr
+                )
+                scores_next = torch.Tensor(choice_model.scores).to(DEVICE)
+                q_val = q_val.squeeze()
+
+                slate = bf_agent.get_optimal_action(scores_next, q_val)
+                selected_doc_feature_next, _, _, _, _ = env.step(slate, b_u)
 
                 # push memory
                 replay_memory_dataset.push(
                     b_u,
                     selected_doc_feature,
-                    candidate_docs_repr,
                     response,
                     b_u_next,
+                    selected_doc_feature_next,
                 )
                 b_u = b_u_next
                 # accumulate reward for each episode
                 # print(response)
+
                 reward.append(response)
 
             # optimize model

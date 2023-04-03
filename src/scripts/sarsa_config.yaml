@@ -1,5 +1,5 @@
-name: wa_run_simulation
-program: wa_run_simulation.py
+name: sarsa_run_simulation
+program: sarsa_run_simulation.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
@@ -38,7 +38,7 @@ parameters:
     value: 1500
   ######## Models related parameters ########
   model:
-    value: WA_Random
+    value: Sarsa_Cosine
   history_model_cls:
     value: AvgHistoryModel
   slate_gen_model_cls:
