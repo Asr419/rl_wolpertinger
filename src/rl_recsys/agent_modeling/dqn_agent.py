@@ -1,6 +1,7 @@
 import random
 import time
 from collections import deque, namedtuple
+from typing import NamedTuple
 
 import torch
 import torch.nn as nn
@@ -10,18 +11,33 @@ from torch.utils.data import Dataset
 from rl_recsys.agent_modeling.agent import AbstractSlateAgent
 
 
+# defining different kind of named tuples for different agents
+class Transition(NamedTuple):
+    state: torch.Tensor
+    selected_doc_feat: torch.Tensor
+    candidate_docs: torch.Tensor
+    reward: torch.Tensor
+    next_state: torch.Tensor
+
+
+class GruTransition(NamedTuple):
+    # the next state will be computed by the GRU
+    state: torch.Tensor
+    selected_doc_feat: torch.Tensor
+    candidate_docs: torch.Tensor
+    reward: torch.Tensor
+    gru_buffer: torch.Tensor
+
+
 class ReplayMemoryDataset(Dataset):
-    def __init__(self, capacity):
+    def __init__(self, capacity: int, transition_cls):
         self.capacity = capacity
         self.memory = deque([], maxlen=capacity)
-        self.Transition = namedtuple(
-            "Transition",
-            ("state", "selected_doc_feat", "candidates_docs", "reward", "next_state"),
-        )
+        self.Transition = transition_cls
 
-    def push(self, *args):
+    def push(self, transition):
         """Save a transition"""
-        self.memory.append(self.Transition(*args))
+        self.memory.append(transition)
 
     def __getitem__(self, index):
         return self.memory[index]
@@ -29,28 +45,13 @@ class ReplayMemoryDataset(Dataset):
     def __len__(self):
         return len(self.memory)
 
-
-def replay_memory_collate_fn(batch):
-    Transition = namedtuple(
-        "Transition",
-        ("state", "selected_doc_feat", "candidates_docs", "reward", "next_state"),
-    )
-
-    transitions_batch = Transition(*zip(*batch))
-
-    state_batch = torch.stack(transitions_batch.state)
-    selected_doc_feat_batch = torch.stack(transitions_batch.selected_doc_feat)
-    next_state_batch = torch.stack(transitions_batch.next_state)
-    candidates_batch = torch.stack(transitions_batch.candidates_docs)
-    reward_batch = torch.stack(transitions_batch.reward)
-
-    return (
-        state_batch,
-        selected_doc_feat_batch,
-        candidates_batch,
-        reward_batch,
-        next_state_batch,
-    )
+    def collate_fn(self, batch):
+        transitions_batch = self.Transition(*zip(*batch))
+        preprocessed_batch = [
+            torch.stack(getattr(transitions_batch, field_name))
+            for field_name in transitions_batch._fields
+        ]
+        return preprocessed_batch
 
 
 class DQNnet(nn.Module):

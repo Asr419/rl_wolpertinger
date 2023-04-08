@@ -11,8 +11,9 @@ import wandb
 from rl_recsys.agent_modeling.agent import BeliefAgent
 from rl_recsys.agent_modeling.dqn_agent import (
     DQNAgent,
+    GruTransition,
     ReplayMemoryDataset,
-    replay_memory_collate_fn,
+    Transition,
 )
 from rl_recsys.agent_modeling.slate_generator import (
     DiverseSlateGenerator,
