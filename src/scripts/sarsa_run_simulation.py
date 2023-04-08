@@ -108,7 +108,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="src/scripts/config.yaml",
+        default="src/scripts/sarsa_config.yaml",
         help="Path to the config file.",
     )
     args = parser.parse_args()
@@ -255,12 +255,21 @@ if __name__ == "__main__":
                 )
                 scores = torch.Tensor(choice_model.scores).to(DEVICE)
                 q_val = q_val.squeeze()
+                get_action_fn = config["parameters"]["get_action_fn"]["value"]
+                action = {
+                    "get_action": bf_agent.get_action,
+                    "get_greedy_action": bf_agent.get_greedy_action,
+                    "get_optimal_action": bf_agent.get_optimal_action,
+                }
+                get_slate = action[get_action_fn]
 
-                slate = bf_agent.get_optimal_action(scores, q_val)
+                slate = get_slate(scores, q_val)
                 # slate=bf_agent.get_diverse_action(scores, q_val, candidate_docs_repr)
                 # slate=bf_agent.get_greedy_slate(scores,q_val)
 
-                selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
+                selected_doc_feature, response, is_terminal, _, _ = env.step(
+                    slate, True
+                )
 
                 if torch.any(selected_doc_feature != 0):
                     b_u_next = bf_agent.update_belief(selected_doc_feature)
@@ -278,8 +287,8 @@ if __name__ == "__main__":
                 scores_next = torch.Tensor(choice_model.scores).to(DEVICE)
                 q_val = q_val.squeeze()
 
-                slate = bf_agent.get_optimal_action(scores_next, q_val)
-                selected_doc_feature_next, _, _, _, _ = env.step(slate, b_u)
+                slate = get_slate(scores_next, q_val)
+                selected_doc_feature_next, _, _, _, _ = env.step(slate, False)
 
                 # push memory
                 replay_memory_dataset.push(

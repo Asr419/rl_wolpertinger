@@ -62,7 +62,7 @@ class AbstractSlateAgent(metaclass=abc.ABCMeta):
         candidate_docs_repr: torch.Tensor,
     ) -> torch.Tensor:
         """Get the action (slate) of the agent"""
-        ids = self.slate_gen(docs_scores, docs_qvalues)
+        ids = self.slate_gen(docs_scores, docs_qvalues, candidate_docs_repr)
         return ids
 
     def get_greedy_slate(

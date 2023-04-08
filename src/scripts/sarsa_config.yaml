@@ -40,8 +40,8 @@ parameters:
   model:
     value: Sarsa_Cosine
   history_model_cls:
-    value: AvgHistoryModel
+    value: GRUModel
   slate_gen_model_cls:
-    value: OptimalSlateGenerator
+    value: TopKSlateGenerator
   get_action_fn:
-    value: get_optimal_action
+    value: bf_agent.get_action

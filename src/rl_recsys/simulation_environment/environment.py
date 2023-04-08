@@ -32,7 +32,7 @@ class MusicGym(gym.Env):
         self.curr_user: UserModel
         self.candidate_docs: list[int]
 
-    def step(self, slate: npt.NDArray[np.int_], belief_state: torch.Tensor):
+    def step(self, slate: npt.NDArray[np.int_], indicator: bool = True):
         # action: is the slate created by the agent
         # observation: is the selected document in the slate
 
@@ -67,8 +67,8 @@ class MusicGym(gym.Env):
             self.curr_user.state_model.update_state(
                 selected_doc_feature=selected_doc_feature
             )
-
-        self.curr_user.update_budget(response)
+        if indicator:
+            self.curr_user.update_budget(response)
         # self.curr_user.update_budget_avg()
 
         is_terminal = self.curr_user.is_terminal()

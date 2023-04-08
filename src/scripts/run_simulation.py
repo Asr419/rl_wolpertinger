@@ -37,6 +37,8 @@ from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
 
+from rl_recsys.agent_modeling.agent import BeliefAgent
+
 class_name_to_class = {
     "AlphaIntentUserState": AlphaIntentUserState,
     "DotProductChoiceModel": DotProductChoiceModel,
@@ -55,6 +57,17 @@ class_name_to_class = {
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
+
+
+def update_belief(selected_doc_feature, run_model):
+    b_u_next = None
+    if run_model == 0:
+        b_u_next = torch.randn(14)
+    if run_model == 1:
+        b_u_next = bf_agent.update_belief(selected_doc_feature)
+    if run_model == 2:
+        b_u_next = env.curr_user.state_model.update_state(selected_doc_feature)
+    return b_u_next
 
 
 def optimize_model(batch):
@@ -140,6 +153,7 @@ if __name__ == "__main__":
     ######## Models related parameters ########
     history_model_cls = config["parameters"]["history_model_cls"]["value"]
     slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
+    belief = config["parameters"]["belief_model"]["value"]
 
     ##################################################
     #################### CATALOGUE ###################
@@ -192,11 +206,17 @@ if __name__ == "__main__":
     agent = DQNAgent(
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
-    # history_model_cls = class_name_to_class[history_model_cls]
-    # belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
-    belief_model = GRUModel(
-        num_doc_features=NUM_ITEM_FEATURES, hidden_size=14, output_size=14, num_layers=3
-    )
+    if belief == 0:
+        history_model_cls = class_name_to_class[history_model_cls]
+        belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
+    else:
+        belief_model = GRUModel(
+            num_doc_features=NUM_ITEM_FEATURES,
+            hidden_size=14,
+            output_size=14,
+            num_layers=3,
+        )
+
     bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
 
     replay_memory_dataset = ReplayMemoryDataset(capacity=100_000)
@@ -227,7 +247,14 @@ if __name__ == "__main__":
         ).to(DEVICE)
 
         # initialize b_u with user features
-        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        run_model = config["parameters"]["run_model"]["value"]
+
+        if run_model == 0:
+            b_u = torch.randn(14)
+        if run_model == 1:
+            b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        else:
+            b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
 
         while not is_terminal:
             with torch.no_grad():
@@ -253,14 +280,26 @@ if __name__ == "__main__":
                 scores = torch.Tensor(choice_model.scores).to(DEVICE)
                 q_val = q_val.squeeze()
 
-                slate = bf_agent.get_optimal_action(scores, q_val)
+                get_action_fn = config["parameters"]["get_action_fn"]["value"]
+                action = {
+                    "get_action": bf_agent.get_action,
+                    "get_greedy_action": bf_agent.get_greedy_action,
+                    "get_optimal_action": bf_agent.get_optimal_action,
+                }
+                get_slate = action[get_action_fn]
+
+                slate = get_slate(scores, q_val)
                 # slate=bf_agent.get_diverse_action(scores, q_val, candidate_docs_repr)
                 # slate=bf_agent.get_greedy_slate(scores,q_val)
 
-                selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
+                selected_doc_feature, response, is_terminal, _, _ = env.step(
+                    slate, indicator=True
+                )
 
                 if torch.any(selected_doc_feature != 0):
-                    b_u_next = bf_agent.update_belief(selected_doc_feature)
+                    b_u_next = update_belief(
+                        selected_doc_feature=selected_doc_feature, run_model=run_model
+                    )
                 else:
                     b_u_next = b_u
 

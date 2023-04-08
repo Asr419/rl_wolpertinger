@@ -58,6 +58,17 @@ DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
 
+def update_belief(selected_doc_feature, run_model):
+    b_u_next = None
+    if run_model == 0:
+        b_u_next = torch.randn(14)
+    if run_model == 1:
+        b_u_next = bf_agent.update_belief(selected_doc_feature)
+    if run_model == 2:
+        b_u_next = env.curr_user.state_model.update_state(selected_doc_feature)
+    return b_u_next
+
+
 def optimize_model(batch):
     optimizer.zero_grad()
 
@@ -106,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="src/scripts/config.yaml",
+        default="src/scripts/wa_config.yaml",
         help="Path to the config file.",
     )
     args = parser.parse_args()
@@ -137,6 +148,7 @@ if __name__ == "__main__":
     TAU = config["parameters"]["tau"]["value"]
     LR = float(config["parameters"]["lr"]["value"])
     NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+    belief = config["parameters"]["belief_model"]["value"]
 
     ######## Models related parameters ########
     history_model_cls = config["parameters"]["history_model_cls"]["value"]
@@ -193,11 +205,16 @@ if __name__ == "__main__":
     agent = DQNAgent(
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
-    history_model_cls = class_name_to_class[history_model_cls]
-    belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
-    # belief_model = GRUModel(
-    #     num_doc_features=NUM_ITEM_FEATURES, hidden_size=14, output_size=14, num_layers=3
-    # )
+    if belief == 0:
+        history_model_cls = class_name_to_class[history_model_cls]
+        belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
+    else:
+        belief_model = GRUModel(
+            num_doc_features=NUM_ITEM_FEATURES,
+            hidden_size=14,
+            output_size=14,
+            num_layers=3,
+        )
     bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
 
     replay_memory_dataset = ReplayMemoryDataset(capacity=100_000)
@@ -213,7 +230,7 @@ if __name__ == "__main__":
 
     is_terminal = False
     b_u = None
-    Actor = WolpertingerActor(nn_dim=[14, 14], k=30)
+    Actor = WolpertingerActor(nn_dim=[14, 14], k=20)
 
     for i_episode in tqdm(range(NUM_EPISODES)):
         reward = []
@@ -229,7 +246,14 @@ if __name__ == "__main__":
         ).to(DEVICE)
 
         # initialize b_u with user features
-        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        run_model = config["parameters"]["run_model"]["value"]
+        if run_model == 0:
+            b_u = torch.randn(14)
+            print(True)
+        if run_model == 1:
+            b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        else:
+            b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
 
         while not is_terminal:
             candidate_docs_repr = Actor.k_nearest(b_u, candidate_docs_repr)
@@ -255,15 +279,26 @@ if __name__ == "__main__":
                 )
                 scores = torch.Tensor(choice_model.scores).to(DEVICE)
                 q_val = q_val.squeeze()
+                get_action_fn = config["parameters"]["get_action_fn"]["value"]
+                action = {
+                    "get_action": bf_agent.get_action,
+                    "get_greedy_action": bf_agent.get_greedy_action,
+                    "get_optimal_action": bf_agent.get_optimal_action,
+                }
+                get_slate = action[get_action_fn]
 
-                slate = bf_agent.get_optimal_action(scores, q_val)
+                slate = get_slate(scores, q_val)
                 # slate=bf_agent.get_diverse_action(scores, q_val, candidate_docs_repr)
                 # slate=bf_agent.get_greedy_slate(scores,q_val)
 
-                selected_doc_feature, response, is_terminal, _, _ = env.step(slate, b_u)
+                selected_doc_feature, response, is_terminal, _, _ = env.step(
+                    slate, indicator=True
+                )
 
                 if torch.any(selected_doc_feature != 0):
-                    b_u_next = bf_agent.update_belief(selected_doc_feature)
+                    b_u_next = update_belief(
+                        selected_doc_feature=selected_doc_feature, run_model=run_model
+                    )
                 else:
                     b_u_next = b_u
 
@@ -302,7 +337,7 @@ if __name__ == "__main__":
         if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
 
-        wandb.log(log_dit, step=i_episode)
+        # wandb.log(log_dit, step=i_episode)
 
         print(
             "Loss: {}, Reward: {}, Cum_Rew: {}".format(

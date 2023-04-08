@@ -52,11 +52,13 @@ class NormalizableChoiceModel(AbstractChoiceModel):
 
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
-        if torch.any(all_scores >= self.satisfaction_threshold):
+        # torch.any(self._scores >= self.satisfaction_threshold)
+        if (self._scores >= self.satisfaction_threshold).all():
+            all_scores = torch.softmax(self._scores, dim=0)
             all_probs = all_scores
             # select the item according to the probability distribution all_probs
             selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
-            
+
             # selected_index = int(torch.argmax(all_probs, dim=0).item())
 
         # all_probs = all_scores
@@ -71,10 +73,9 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         pass
 
     def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
-        logits = self._score_documents(user_state, docs_repr)
+        self._scores = self._score_documents(user_state, docs_repr)
         # normalize logits sum to 1
         # Use softmax scores instead of exponential scores to avoid overflow.
-        self._scores = torch.softmax(logits, dim=0)
 
 
 class DotProductChoiceModel(NormalizableChoiceModel):
@@ -99,4 +100,8 @@ class CosineSimilarityChoiceModel(NormalizableChoiceModel):
         self, user_state: torch.Tensor, docs_repr: torch.Tensor
     ) -> torch.Tensor:
         # Calculate cosine similarity between user_state and each document representation
-        return F.cosine_similarity(user_state, docs_repr)
+        scores = F.cosine_similarity(user_state, docs_repr)
+        scores = (
+            scores + 1
+        ) / 2  # normalize cosine values to 0 and 1 for convenience of training
+        return scores
