@@ -5,7 +5,7 @@ parameters:
   resp_amp_factor:
     value: 10.0
   satisfaction_threshold:
-    value: 0.4
+    value: 0.7
   state_update_rate:
     value: 0.9  
   state_model_cls:

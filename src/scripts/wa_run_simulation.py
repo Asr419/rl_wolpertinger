@@ -148,7 +148,7 @@ if __name__ == "__main__":
     TAU = config["parameters"]["tau"]["value"]
     LR = float(config["parameters"]["lr"]["value"])
     NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
-    belief = config["parameters"]["belief_model"]["value"]
+    belief = config["parameters"]["belief"]["value"]
 
     ######## Models related parameters ########
     history_model_cls = config["parameters"]["history_model_cls"]["value"]

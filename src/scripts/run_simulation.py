@@ -153,7 +153,7 @@ if __name__ == "__main__":
     ######## Models related parameters ########
     history_model_cls = config["parameters"]["history_model_cls"]["value"]
     slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
-    belief = config["parameters"]["belief_model"]["value"]
+    belief = config["parameters"]["belief"]["value"]
 
     ##################################################
     #################### CATALOGUE ###################

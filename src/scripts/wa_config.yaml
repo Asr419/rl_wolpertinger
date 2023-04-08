@@ -5,9 +5,9 @@ parameters:
   resp_amp_factor:
     value: 10.0
   satisfaction_threshold:
-    value: 1.4
+    value: 0.7
   state_update_rate:
-    value: 0.9  
+    value: 0.9
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
