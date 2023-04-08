@@ -59,9 +59,9 @@ class GRUModel(AbstractHistoryModel):
     def __init__(
         self,
         num_doc_features: int,
-        hidden_size: int,
-        output_size: int,
-        num_layers: int,
+        hidden_size: int = 14,
+        output_size: int = 14,
+        num_layers: int = 3,
     ):
         super().__init__(num_doc_features=num_doc_features)
         self.gru = nn.GRU(

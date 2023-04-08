@@ -5,7 +5,7 @@ parameters:
   resp_amp_factor:
     value: 10.0
   satisfaction_threshold:
-    value: 0.7
+    value: 0.4
   state_update_rate:
     value: 0.9  
   state_model_cls:
@@ -43,11 +43,5 @@ parameters:
     value: AvgHistoryModel
   slate_gen_model_cls:
     value: TopKSlateGenerator
-  get_action_fn:
-    value: get_action
-  run_model:
-    value: 0
-  #0-random,1-hidden,2-full_observable
-  belief:
-    value: 1
-  #1-GRU 0-AvgHistory
+  intent_kind:
+    value: "random"

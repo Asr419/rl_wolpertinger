@@ -9,40 +9,6 @@ from rl_recsys.belief_modeling.belief_model import NNBeliefModel
 torch_model = TypeVar("torch_model", bound=torch.nn.Module)
 
 
-class BeliefAgent(
-    nn.Module,
-):
-    # model an abstract agent with a belief state
-    def __init__(self, agent: torch_model, belief_model: torch_model) -> None:
-        super().__init__()
-        self.agent = agent
-        self.belief_model = belief_model
-
-    def update_belief(self, *args, **kwargs) -> torch.Tensor:
-        """Update the belief state of the agent"""
-        return self.belief_model(*args, **kwargs)
-
-    def get_action(
-        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
-    ) -> torch.Tensor:
-        return self.agent.get_slate(docs_scores, docs_qvalues)
-
-    def get_diverse_action(
-        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
-    ) -> torch.Tensor:
-        return self.agent.get_diverse_slate(docs_scores, docs_qvalues)
-
-    def get_greedy_action(
-        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
-    ) -> torch.Tensor:
-        return self.agent.get_greedy_slate(docs_scores, docs_qvalues)
-
-    def get_optimal_action(
-        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
-    ) -> torch.Tensor:
-        return self.agent.get_optimal_slate(docs_scores, docs_qvalues)
-
-
 class AbstractSlateAgent(metaclass=abc.ABCMeta):
     # model an abstract agent recommending slates of documents
     def __init__(self, slate_gen) -> None:
@@ -55,30 +21,23 @@ class AbstractSlateAgent(metaclass=abc.ABCMeta):
         scores, ids = self.slate_gen(state, candidate_docs)
         return ids
 
-    def get_diverse_slate(
-        self,
-        docs_scores: torch.Tensor,
-        docs_qvalues: torch.Tensor,
-        candidate_docs_repr: torch.Tensor,
-    ) -> torch.Tensor:
-        """Get the action (slate) of the agent"""
-        ids = self.slate_gen(docs_scores, docs_qvalues, candidate_docs_repr)
-        return ids
 
-    def get_greedy_slate(
-        self,
-        docs_scores: torch.Tensor,
-        docs_qvalues: torch.Tensor,
-    ) -> torch.Tensor:
-        """Get the action (slate) of the agent"""
-        ids = self.slate_gen(docs_scores, docs_qvalues)
-        return ids
+class BeliefAgent(
+    nn.Module,
+):
+    # model an abstract agent with a belief state
+    def __init__(self, agent: torch_model, belief_model: torch_model) -> None:
+        nn.Module.__init__(self)
 
-    def get_optimal_slate(
-        self,
-        docs_scores: torch.Tensor,
-        docs_qvalues: torch.Tensor,
+        self.agent = agent
+        self.belief_model = belief_model
+
+    def update_belief(self, *args, **kwargs) -> torch.Tensor:
+        """Update the belief state of the agent"""
+        return self.belief_model(*args, **kwargs)
+
+    def get_action(
+        self, docs_scores: torch.Tensor, docs_qvalues: torch.Tensor
     ) -> torch.Tensor:
-        """Get the action (slate) of the agent"""
-        ids = self.slate_gen(docs_scores, docs_qvalues)
-        return ids
+        # agent is extending AbstractSlateAgent
+        return self.agent.get_slate(docs_scores, docs_qvalues)  # type: ignore

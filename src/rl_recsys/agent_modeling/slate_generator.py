@@ -1,9 +1,9 @@
 import abc
+import itertools
 from typing import Tuple
 
 import numpy as np
 import torch
-import itertools
 
 from rl_recsys.agent_modeling.dqn_agent import DQNnet
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
@@ -68,6 +68,7 @@ class DiverseSlateGenerator(AbstractSlateGenerator):
         return topk_scores, topk_ids
 
 
+# todo: to be checked
 class GreedySlateGenerator(AbstractSlateGenerator):
     def __call__(
         self,
