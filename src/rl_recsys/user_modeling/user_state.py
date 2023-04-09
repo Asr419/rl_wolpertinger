@@ -4,11 +4,13 @@ from typing import Any, Type, TypeVar
 import numpy as np
 import numpy.typing as npt
 import torch
+import torch.nn as nn
 
 
-class AbstractUserState(metaclass=abc.ABCMeta):
+class AbstractUserState(nn.Module, metaclass=abc.ABCMeta):
     # hidden state of the user
     def __init__(self, state_update_rate: float, **kwds: Any) -> None:
+        super().__init__(**kwds)
         self.state_update_rate = state_update_rate
 
     @abc.abstractmethod
@@ -37,9 +39,10 @@ class AlphaIntentUserState(AbstractUserState):
 
         self.tgt_feature_idx = tgt_feature_idx
         # called p_uh in the paper
-        self.user_state = self.generate_state(self.user_features)
+        user_state = self.generate_state(self.user_features)
+        self.register_buffer("user_state", user_state)
 
-    def generate_state(self, user_features: npt.NDArray[np.float_]) -> torch.Tensor:
+    def generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
         user_state = torch.Tensor(user_features).clone()
         # sample alpha from a uniform distribution
         # alpha = torch.rand(1)

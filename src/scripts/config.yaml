@@ -27,7 +27,7 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 128
+    value: 32
   gamma:
     value: 1.0
   tau:

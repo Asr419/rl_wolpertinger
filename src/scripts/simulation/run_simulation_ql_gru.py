@@ -123,6 +123,7 @@ if __name__ == "__main__":
         state_model_kwargs=state_model_kwgs,
         choice_model_kwargs=choice_model_kwgs,
         response_model_kwargs=response_model_kwgs,
+        device=DEVICE,
     )
     user_sampler.generate_users(num_users=NUM_USERS)
 
@@ -205,9 +206,7 @@ if __name__ == "__main__":
 
                 slate = bf_agent.get_action(scores, q_val)
 
-                selected_doc_feature, response, is_terminal, _, _ = env.step(
-                    slate, indicator=True
-                )
+                selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
 
                 # fill the GRU buffer
                 gru_buff[

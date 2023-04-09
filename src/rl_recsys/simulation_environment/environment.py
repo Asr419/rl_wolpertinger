@@ -30,9 +30,9 @@ class MusicGym(gym.Env):
 
         # initialized by reset
         self.curr_user: UserModel
-        self.candidate_docs: list[int]
+        self.candidate_docs: torch.Tensor
 
-    def step(self, slate: npt.NDArray[np.int_], indicator: bool = True):
+    def step(self, slate: npt.NDArray[np.int_]):
         # action: is the slate created by the agent
         # observation: is the selected document in the slate
 
@@ -67,8 +67,8 @@ class MusicGym(gym.Env):
             self.curr_user.state_model.update_state(
                 selected_doc_feature=selected_doc_feature
             )
-        if indicator:
-            self.curr_user.update_budget(response)
+
+        self.curr_user.update_budget(response)
         # self.curr_user.update_budget_avg()
 
         is_terminal = self.curr_user.is_terminal()
@@ -79,13 +79,16 @@ class MusicGym(gym.Env):
         # initialize an episode by setting the user and the candidate documents
         user = self.user_sampler.sample_user()
         self.curr_user = user
+        # initialize user budget
         user.budget = user.init_budget()
-        self.p_uh = self.curr_user.get_state().to(self.device)
-        # self.candidate_docs = self.rec_model.recommend_random(user.features, self.k)
-        self.candidate_docs = self.rec_model.recommend(user.features, self.k)
+        # initialize user hidden state
+        self.p_uh = self.curr_user.get_state()
+        # retrieve candidate documents
+        candidate_docs = self.rec_model.recommend(user.features.to("cpu"), self.k)
+        self.candidate_docs = torch.Tensor(candidate_docs).to(device=self.device)
 
     def render(self):
         raise NotImplementedError()
 
-    def get_candidate_docs(self) -> npt.NDArray[np.int_]:
-        return np.array(self.candidate_docs)
+    def get_candidate_docs(self) -> torch.Tensor:
+        return self.candidate_docs

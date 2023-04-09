@@ -6,6 +6,7 @@ from typing import Any, Callable, List, Type, TypeVar
 import numpy as np
 import numpy.typing as npt
 import torch
+import torch.nn as nn
 
 from rl_recsys.user_modeling.choice_model import AbstractChoiceModel
 from rl_recsys.user_modeling.features_gen import AbstractFeaturesGenerator
@@ -20,20 +21,22 @@ user_response_model_type = TypeVar(
 feature_gen_type = TypeVar("feature_gen_type", bound=AbstractFeaturesGenerator)
 
 
-class UserModel:
+class UserModel(nn.Module):
     def __init__(
         self,
-        user_features: npt.NDArray[np.float64],
+        user_features: torch.Tensor,
         user_state_model: user_state_model_type,
         user_choice_model: user_choice_model_type,
         user_response_model: user_response_model_type,
         songs_per_sess: int = 30,
         avg_song_duration: float = 207467.0,
     ) -> None:
+        super().__init__()
+
         self.state_model = user_state_model
         self.choice_model = user_choice_model
         self.response_model = user_response_model
-        self._features = user_features
+        self.register_buffer("_features", user_features)
 
         self.song_per_sess = songs_per_sess
         self.avg_song_duration = avg_song_duration
@@ -42,8 +45,8 @@ class UserModel:
         self.budget = self.init_budget()
 
     @property
-    def features(self) -> npt.NDArray[np.float_]:
-        return self._features
+    def features(self) -> torch.Tensor:
+        return self._features  # type: ignore
 
     def get_state(self):
         return self.state_model.user_state
@@ -77,7 +80,10 @@ class UserSampler:
         choice_model_kwargs: dict[str, Any] = {},
         response_model_kwargs: dict[str, Any] = {},
         num_user_features: int = 14,
+        device: torch.device = torch.device("cpu"),
     ) -> None:
+        self.device = device
+
         self.state_model_cls = state_model_cls
         self.choice_model_cls = choice_model_cls
         self.response_model_cls = response_model_cls
@@ -93,6 +99,7 @@ class UserSampler:
     def _generate_user(self) -> UserModel:
         # generate a user
         user_features = self.feature_gen(num_features=self.num_user_features)
+        user_features = torch.Tensor(user_features)
 
         # initialize models
         state_model = self.state_model_cls(
@@ -106,7 +113,7 @@ class UserSampler:
             user_state_model=state_model,
             user_choice_model=choice_model,
             user_response_model=response_model,
-        )
+        ).to(self.device)
 
         return user
 
