@@ -229,9 +229,7 @@ if __name__ == "__main__":
 
                 slate = bf_agent.get_action(scores, q_val)
 
-                selected_doc_feature, response, is_terminal, _, _ = env.step(
-                    slate, indicator=True
-                )
+                selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
 
                 if torch.any(selected_doc_feature != 0):
                     b_u_next = update_belief(
@@ -244,11 +242,13 @@ if __name__ == "__main__":
 
                 # push memory
                 replay_memory_dataset.push(
-                    b_u,
-                    selected_doc_feature,
-                    candidate_docs_repr,
-                    response,
-                    b_u_next,
+                    transition_cls(
+                        b_u,
+                        selected_doc_feature,
+                        candidate_docs_repr,
+                        response,
+                        b_u_next,
+                    )
                 )
                 b_u = b_u_next
 

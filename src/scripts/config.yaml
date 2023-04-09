@@ -44,6 +44,6 @@ parameters:
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
-    value: "random"
+    value: "hidden"
   hist_length:
     value: 5
