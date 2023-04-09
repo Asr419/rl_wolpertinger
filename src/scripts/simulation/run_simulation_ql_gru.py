@@ -275,7 +275,7 @@ if __name__ == "__main__":
     path = directory + folder_name
     os.makedirs(path)
 
-    source_path = "src/scripts/config.yaml"
+    source_path = "src/scripts/ql_config.yaml"
     destination_path = path + "/_config.yaml"
     shutil.copy(source_path, destination_path)
 
