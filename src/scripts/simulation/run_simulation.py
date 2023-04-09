@@ -1,70 +1,17 @@
-import argparse
-import configparser
-
-import torch
-import torch.optim as optim
-import yaml
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
-import wandb
-from rl_recsys.agent_modeling.agent import BeliefAgent
-from rl_recsys.agent_modeling.dqn_agent import (
-    DQNAgent,
-    ReplayMemoryDataset,
-    replay_memory_collate_fn,
-)
-from rl_recsys.agent_modeling.slate_generator import (
-    TopKSlateGenerator,
-    DiverseSlateGenerator,
-    GreedySlateGenerator,
-    OptimalSlateGenerator,
-)
-from rl_recsys.belief_modeling.history_model import AvgHistoryModel, GRUModel
-from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
-from rl_recsys.retrieval import ContentSimilarityRec
-from rl_recsys.simulation_environment.environment import MusicGym
-from rl_recsys.user_modeling.choice_model import (
-    CosineSimilarityChoiceModel,
-    DotProductChoiceModel,
-)
-from rl_recsys.user_modeling.features_gen import NormalUserFeaturesGenerator
-from rl_recsys.user_modeling.response_model import (
-    CosineResponseModel,
-    DotProductResponseModel,
-)
-from rl_recsys.user_modeling.user_model import UserSampler
-from rl_recsys.user_modeling.user_state import AlphaIntentUserState
-from rl_recsys.utils import load_spotify_data
-from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
-
-class_name_to_class = {
-    "AlphaIntentUserState": AlphaIntentUserState,
-    "DotProductChoiceModel": DotProductChoiceModel,
-    "CosineResponseModel": CosineResponseModel,
-    "CosineSimilarityChoiceModel": CosineSimilarityChoiceModel,
-    "DotProductResponseModel": DotProductResponseModel,
-    "AvgHistoryModel": AvgHistoryModel,
-    "GRUModel": GRUModel,
-    "TopKSlateGenerator": TopKSlateGenerator,
-    "DiverseSlateGenerator": DiverseSlateGenerator,
-    "GreedySlateGenerator": GreedySlateGenerator,
-    "OptimalSlateGenerator": OptimalSlateGenerator,
-}
-
+from scripts.simulation_imports import *
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
 
-def update_belief(selected_doc_feature, run_model):
+def update_belief(selected_doc_feature: torch.Tensor, intent_kind: str):
     b_u_next = None
-    if run_model == 0:
+    if intent_kind == "random":
         b_u_next = torch.randn(14)
-    if run_model == 1:
+    if intent_kind == "hidden":
         b_u_next = bf_agent.update_belief(selected_doc_feature)
-    if run_model == 2:
+    if intent_kind == "observable":
         b_u_next = env.curr_user.state_model.update_state(selected_doc_feature)
     return b_u_next
 
@@ -117,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="src/scripts/wa_config.yaml",
+        default="src/scripts/run_config.yaml",
         help="Path to the config file.",
     )
     args = parser.parse_args()
@@ -141,6 +88,7 @@ if __name__ == "__main__":
     NUM_USERS = config["parameters"]["num_users"]["value"]
     NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
     RETRIEVAL_MODEL = config["parameters"]["retrieval_model"]["value"]
+    INTENT_KIND = config["parameters"]["intent_kind"]["value"]
 
     ######## Training related parameters ########
     BATCH_SIZE = config["parameters"]["batch_size"]["value"]
@@ -148,7 +96,6 @@ if __name__ == "__main__":
     TAU = config["parameters"]["tau"]["value"]
     LR = float(config["parameters"]["lr"]["value"])
     NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
-    belief = config["parameters"]["belief"]["value"]
 
     ######## Models related parameters ########
     history_model_cls = config["parameters"]["history_model_cls"]["value"]
@@ -196,7 +143,6 @@ if __name__ == "__main__":
     )
 
     # define Slate Gen model
-    # slate_gen = TopKSlateGenerator(slate_size=SLATE_SIZE)
     slate_gen_model_cls = class_name_to_class[slate_gen_model_cls]
     slate_gen = slate_gen_model_cls(slate_size=SLATE_SIZE)
 
@@ -205,23 +151,17 @@ if __name__ == "__main__":
     agent = DQNAgent(
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
-    if belief == 0:
-        history_model_cls = class_name_to_class[history_model_cls]
-        belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
-    else:
-        belief_model = GRUModel(
-            num_doc_features=NUM_ITEM_FEATURES,
-            hidden_size=14,
-            output_size=14,
-            num_layers=3,
-        )
+
+    history_model_cls = class_name_to_class[history_model_cls]
+    belief_model = history_model_cls(num_doc_features=NUM_ITEM_FEATURES)
+
     bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
 
     replay_memory_dataset = ReplayMemoryDataset(capacity=100_000)
     replay_memory_dataloader = DataLoader(
         replay_memory_dataset,
         batch_size=BATCH_SIZE,
-        collate_fn=replay_memory_collate_fn,
+        collate_fn=replay_memory_dataset.collate_fn,
         shuffle=False,
     )
 
@@ -229,8 +169,18 @@ if __name__ == "__main__":
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
     is_terminal = False
-    b_u = None
-    Actor = WolpertingerActor(nn_dim=[14, 14], k=20)
+    # Initialize b_u
+    if INTENT_KIND == "random":
+        b_u = torch.randn(14).to(DEVICE)
+    elif INTENT_KIND == "hidden":
+        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+    elif INTENT_KIND == "observable":
+        b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
+    else:
+        raise ValueError("invalid intent_kind")
+    keys = ["ep_reward", "ep_avg_reward", "loss"]
+    save_dict = defaultdict(list)
+    save_dict.update({key: [] for key in keys})
 
     for i_episode in tqdm(range(NUM_EPISODES)):
         reward = []
@@ -245,18 +195,7 @@ if __name__ == "__main__":
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
 
-        # initialize b_u with user features
-        run_model = config["parameters"]["run_model"]["value"]
-        if run_model == 0:
-            b_u = torch.randn(14)
-            print(True)
-        if run_model == 1:
-            b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-        else:
-            b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
-
         while not is_terminal:
-            candidate_docs_repr = Actor.k_nearest(b_u, candidate_docs_repr)
             with torch.no_grad():
                 # cos_sim = torch.nn.functional.cosine_similarity(
                 #     env.curr_user.get_state(), candidate_docs_repr, dim=1
@@ -279,17 +218,8 @@ if __name__ == "__main__":
                 )
                 scores = torch.Tensor(choice_model.scores).to(DEVICE)
                 q_val = q_val.squeeze()
-                get_action_fn = config["parameters"]["get_action_fn"]["value"]
-                action = {
-                    "get_action": bf_agent.get_action,
-                    "get_greedy_action": bf_agent.get_greedy_action,
-                    "get_optimal_action": bf_agent.get_optimal_action,
-                }
-                get_slate = action[get_action_fn]
 
-                slate = get_slate(scores, q_val)
-                # slate=bf_agent.get_diverse_action(scores, q_val, candidate_docs_repr)
-                # slate=bf_agent.get_greedy_slate(scores,q_val)
+                slate = bf_agent.get_action(scores, q_val)
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(
                     slate, indicator=True
@@ -297,9 +227,11 @@ if __name__ == "__main__":
 
                 if torch.any(selected_doc_feature != 0):
                     b_u_next = update_belief(
-                        selected_doc_feature=selected_doc_feature, run_model=run_model
+                        selected_doc_feature=selected_doc_feature,
+                        intent_kind=INTENT_KIND,
                     )
                 else:
+                    # no item selected -> no update
                     b_u_next = b_u
 
                 # push memory
@@ -311,8 +243,7 @@ if __name__ == "__main__":
                     b_u_next,
                 )
                 b_u = b_u_next
-                # accumulate reward for each episode
-                # print(response)
+
                 reward.append(response)
 
             # optimize model
@@ -337,7 +268,7 @@ if __name__ == "__main__":
         if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
 
-        # wandb.log(log_dit, step=i_episode)
+        wandb.log(log_dit, step=i_episode)
 
         print(
             "Loss: {}, Reward: {}, Cum_Rew: {}".format(
@@ -346,14 +277,17 @@ if __name__ == "__main__":
                 ep_reward,
             )
         )
+        save_dict["ep_reward"].append(ep_reward)
+        save_dict["ep_avg_reward"].append(ep_avg_reward)
+        save_dict["loss"].append(torch.mean(torch.tensor(loss)))
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
     if INTENT_KIND == "random":
-        directory = "src/saved_models/random_wa/"
+        directory = "src/saved_models/random_slateq/"
     elif INTENT_KIND == "hidden":
-        directory = "src/saved_models/hidden_wa/"
+        directory = "src/saved_models/hidden_slateq/"
     elif INTENT_KIND == "observable":
-        directory = "src/saved_models/observed_wa/"
+        directory = "src/saved_models/observed_slateq/"
 
     # Create the directory with the folder name
     path = directory + folder_name
@@ -364,9 +298,8 @@ if __name__ == "__main__":
     shutil.copy(source_path, destination_path)
 
     # Save the model
-    Path = path + "/critic_model.pt"
+    Path = path + "/model.pt"
     torch.save(bf_agent, Path)
-    torch.save(Actor, path + "/actor_model.pt")
 
     with open(path + "/logs_dict.pickle", "wb") as f:
         pickle.dump(save_dict, f)

@@ -1,0 +1,47 @@
+name: run_simulation_ql_gru
+program: run_simulation_ql_gru.py
+parameters:
+  ######## User related parameters ########
+  resp_amp_factor:
+    value: 10.0
+  satisfaction_threshold:
+    value: 0.6
+  state_update_rate:
+    value: 0.9  
+  state_model_cls:
+    value: AlphaIntentUserState
+  choice_model_cls:
+    value: CosineSimilarityChoiceModel
+  response_model_cls:
+    value: CosineResponseModel
+  ######## Environment related parameters ########
+  num_users:
+    value: 500
+  slate_size:
+    value: 10
+  num_item_features:
+    value: 14
+  num_candidates:
+    value: 100
+  retrieval_model:
+    value: cosine
+  ######## Training related parameters ########
+  batch_size:
+    value: 128
+  gamma:
+    value: 1.0
+  tau:
+    value: 0.005
+  lr:
+    value: 1e-4
+  num_episodes:
+    value: 1000
+  ######## Models related parameters ########
+  model:
+    value: SlateQ_Cosine
+  history_model_cls:
+    value: AvgHistoryModel
+  slate_gen_model_cls:
+    value: TopKSlateGenerator
+  intent_kind:
+    value: "random"
