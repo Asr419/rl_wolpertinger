@@ -5,6 +5,17 @@ DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
 
+def update_belief(selected_doc_feature: torch.Tensor, intent_kind: str):
+    b_u_next = None
+    if intent_kind == "random":
+        b_u_next = torch.randn(14)
+    if intent_kind == "hidden":
+        b_u_next = bf_agent.update_belief(selected_doc_feature)
+    if intent_kind == "observable":
+        b_u_next = env.curr_user.get_state()
+    return b_u_next
+
+
 def optimize_model(batch):
     optimizer.zero_grad()
 
@@ -13,19 +24,13 @@ def optimize_model(batch):
         selected_doc_feat_batch,  # [batch_size, num_item_features]
         candidates_batch,  # [batch_size, num_candidates, num_item_features]
         reward_batch,  # [batch_size, 1]
-        gru_buffer_batch,  # [batch_size, num_item_features]
+        next_state_batch,  # [batch_size, num_item_features]
     ) = batch
 
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
     )  # type: ignore
-
-    # compute s'
-    gru_out = bf_agent.update_belief(gru_buffer_batch)
-    next_state_batch = gru_out[
-        :, -1, :
-    ]  # keep only the last gru output for every batch
 
     # Q(s', a): [batch_size, 1]
     cand_qtgt_list = []
@@ -59,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="src/scripts/ql_config.yaml",
+        default="src/scripts/config.yaml",
         help="Path to the config file.",
     )
     args = parser.parse_args()
@@ -93,8 +98,9 @@ if __name__ == "__main__":
     NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
 
     ######## Models related parameters ########
+    history_model_cls = config["parameters"]["history_model_cls"]["value"]
     slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
-    GRU_SEQ_LEN = config["parameters"]["hist_length"]["value"]
+    SEQ_LEN = config["parameters"]["hist_length"]["value"]
 
     ##################################################
     #################### CATALOGUE ###################
@@ -123,7 +129,6 @@ if __name__ == "__main__":
         state_model_kwargs=state_model_kwgs,
         choice_model_kwargs=choice_model_kwgs,
         response_model_kwargs=response_model_kwgs,
-        device=DEVICE,
     )
     user_sampler.generate_users(num_users=NUM_USERS)
 
@@ -148,11 +153,13 @@ if __name__ == "__main__":
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
     )
 
-    belief_model = GRUModel(num_doc_features=NUM_ITEM_FEATURES)
+    history_model_cls = class_name_to_class[history_model_cls]
+    belief_model = history_model_cls(
+        num_doc_features=NUM_ITEM_FEATURES, memory_length=SEQ_LEN
+    )
 
     bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
-
-    transition_cls = GruTransition
+    transition_cls = Transition
 
     replay_memory_dataset = ReplayMemoryDataset(
         capacity=100_000, transition_cls=transition_cls
@@ -168,21 +175,18 @@ if __name__ == "__main__":
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
     is_terminal = False
+    # Initialize b_u
+    b_u = None
+
     keys = ["ep_reward", "ep_avg_reward", "loss"]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
 
     for i_episode in tqdm(range(NUM_EPISODES)):
-        gru_buff = torch.zeros((1, GRU_SEQ_LEN, NUM_ITEM_FEATURES)).to(DEVICE)
-        count = 0
-
         reward = []
         loss = []
 
         env.reset()
-        # Initialize b_u
-        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-
         is_terminal = False
         cum_reward = 0
 
@@ -190,9 +194,25 @@ if __name__ == "__main__":
         candidate_docs_repr = torch.Tensor(
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
+        if INTENT_KIND == "random":
+            b_u = torch.randn(14).to(DEVICE)
+        elif INTENT_KIND == "hidden":
+            b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        elif INTENT_KIND == "observable":
+            b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
+        else:
+            raise ValueError("invalid intent_kind")
 
         while not is_terminal:
             with torch.no_grad():
+                # cos_sim = torch.nn.functional.cosine_similarity(
+                #     env.curr_user.get_state(), candidate_docs_repr, dim=1
+                # )
+                # print(cos_sim.max())
+                # print(cos_sim.min())
+                # print(cos_sim.mean())
+                # print("++++++++")
+
                 b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
 
                 q_val = bf_agent.agent.compute_q_values(
@@ -209,27 +229,28 @@ if __name__ == "__main__":
 
                 slate = bf_agent.get_action(scores, q_val)
 
-                selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
+                selected_doc_feature, response, is_terminal, _, _ = env.step(
+                    slate, indicator=True
+                )
 
-                # fill the GRU buffer
-                gru_buff[
-                    0, GRU_SEQ_LEN - (count % GRU_SEQ_LEN) - 1, :
-                ] = selected_doc_feature
+                if torch.any(selected_doc_feature != 0):
+                    b_u_next = update_belief(
+                        selected_doc_feature=selected_doc_feature,
+                        intent_kind=INTENT_KIND,
+                    )
+                else:
+                    # no item selected -> no update
+                    b_u_next = b_u
 
                 # push memory
                 replay_memory_dataset.push(
-                    transition_cls(
-                        b_u,
-                        selected_doc_feature,
-                        candidate_docs_repr,
-                        response,
-                        gru_buff.squeeze(),
-                    )
+                    b_u,
+                    selected_doc_feature,
+                    candidate_docs_repr,
+                    response,
+                    b_u_next,
                 )
-
-                # output of the GRU cell, get the last output for the sequence
-                out = bf_agent.update_belief(gru_buff)
-                b_u = out[0, -1, :]
+                b_u = b_u_next
 
                 reward.append(response)
 
@@ -269,7 +290,12 @@ if __name__ == "__main__":
         save_dict["loss"].append(torch.mean(torch.tensor(loss)))
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
-    directory = "src/saved_models/hidden_slateq/gru/"
+    if INTENT_KIND == "random":
+        directory = "src/saved_models/random_slateq/"
+    elif INTENT_KIND == "hidden":
+        directory = "src/saved_models/hidden_slateq/avghistory/"
+    elif INTENT_KIND == "observable":
+        directory = "src/saved_models/observed_slateq/"
 
     # Create the directory with the folder name
     path = directory + folder_name

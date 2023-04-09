@@ -1,5 +1,5 @@
-name: run_simulation
-program: run_simulation.py
+name: run_simulation_ql_gru
+program: run_simulation_ql_gru.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
@@ -40,7 +40,7 @@ parameters:
   model:
     value: SlateQ_Cosine
   history_model_cls:
-    value: AvgHistoryModel
+    value: GRUModel
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
