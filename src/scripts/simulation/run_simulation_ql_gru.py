@@ -8,19 +8,24 @@ print("DEVICE: ", DEVICE)
 def optimize_model(batch):
     optimizer.zero_grad()
 
-    a = 5
     (
         state_batch,  # [batch_size, num_item_features]
         selected_doc_feat_batch,  # [batch_size, num_item_features]
         candidates_batch,  # [batch_size, num_candidates, num_item_features]
         reward_batch,  # [batch_size, 1]
-        next_state_batch,  # [batch_size, num_item_features]
-    ) = zip(*batch)
+        gru_buffer_batch,  # [batch_size, num_item_features]
+    ) = batch
 
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
     )  # type: ignore
+
+    # compute s'
+    gru_out = bf_agent.update_belief(gru_buffer_batch)
+    next_state_batch = gru_out[
+        :, -1, :
+    ]  # keep only the last gru output for every batch
 
     # Q(s', a): [batch_size, 1]
     cand_qtgt_list = []
@@ -89,7 +94,7 @@ if __name__ == "__main__":
 
     ######## Models related parameters ########
     slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
-    GRU_SEQ_LEN = 10
+    GRU_SEQ_LEN = 5
 
     ##################################################
     #################### CATALOGUE ###################
@@ -216,7 +221,7 @@ if __name__ == "__main__":
                         selected_doc_feature,
                         candidate_docs_repr,
                         response,
-                        gru_buff,
+                        gru_buff.squeeze(),
                     )
                 )
 
