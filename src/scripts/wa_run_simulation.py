@@ -346,27 +346,3 @@ if __name__ == "__main__":
                 ep_reward,
             )
         )
-    now = datetime.now()
-    folder_name = now.strftime("%m-%d_%H-%M-%S")
-    if INTENT_KIND == "random":
-        directory = "src/saved_models/random_wa/"
-    elif INTENT_KIND == "hidden":
-        directory = "src/saved_models/hidden_wa/"
-    elif INTENT_KIND == "observable":
-        directory = "src/saved_models/observed_wa/"
-
-    # Create the directory with the folder name
-    path = directory + folder_name
-    os.makedirs(path)
-
-    source_path = "src/scripts/config.yaml"
-    destination_path = path + "/_config.yaml"
-    shutil.copy(source_path, destination_path)
-
-    # Save the model
-    Path = path + "/critic_model.pt"
-    torch.save(bf_agent, Path)
-    torch.save(Actor, path + "/actor_model.pt")
-
-    with open(path + "/logs_dict.pickle", "wb") as f:
-        pickle.dump(save_dict, f)
