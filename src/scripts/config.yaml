@@ -31,11 +31,11 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.005
+    value: 0.001
   lr:
     value: 1e-4
   num_episodes:
-    value: 1800
+    value: 1600
   ######## Models related parameters ########
   model:
     value: SlateQ_Cosine
@@ -47,3 +47,7 @@ parameters:
     value: "hidden"
   hist_length:
     value: 5
+  
+#reproducibility
+  seed: 
+    value: 3005

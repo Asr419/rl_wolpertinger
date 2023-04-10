@@ -91,6 +91,8 @@ if __name__ == "__main__":
     TAU = config["parameters"]["tau"]["value"]
     LR = float(config["parameters"]["lr"]["value"])
     NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+    SEED = config["parameters"]["seed"]["value"]
+    pl.seed_everything(SEED)
 
     ######## Models related parameters ########
     slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
