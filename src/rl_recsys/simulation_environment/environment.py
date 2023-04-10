@@ -81,6 +81,8 @@ class MusicGym(gym.Env):
         self.curr_user = user
         # initialize user budget
         user.budget = user.init_budget()
+        # reinitialize the user state
+        self.curr_user.state_model.reset_state()
         # initialize user hidden state
         self.p_uh = self.curr_user.get_state()
         # retrieve candidate documents

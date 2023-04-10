@@ -7,7 +7,7 @@ parameters:
   satisfaction_threshold:
     value: 0.5
   state_update_rate:
-    value: 0.9  
+    value: 1  
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -16,13 +16,13 @@ parameters:
     value: CosineResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 500
+    value: 1
   slate_size:
-    value: 10
+    value: 5
   num_item_features:
     value: 14
   num_candidates:
-    value: 500
+    value: 20
   retrieval_model:
     value: cosine
   ######## Training related parameters ########

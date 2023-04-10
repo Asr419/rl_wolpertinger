@@ -50,6 +50,7 @@ def optimize_model(batch):
         # [num_candidates, 1]
         scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
         # max over Q(s', a)
+        scores_tens = torch.softmax(scores_tens, dim=0)
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
@@ -268,7 +269,7 @@ if __name__ == "__main__":
                 reward.append(response)
 
             # optimize model
-            if len(replay_memory_dataset.memory) >= 1 * BATCH_SIZE:
+            if len(replay_memory_dataset.memory) >= 10 * BATCH_SIZE:
                 # get a batch of transitions from the replay buffer
                 batch = next(iter(replay_memory_dataloader))
                 for elem in batch:
@@ -297,7 +298,7 @@ if __name__ == "__main__":
             "avg_reward": ep_avg_reward,
             "diff_to_best": ep_diff_to_best,
         }
-        if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
+        if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
 
         wandb.log(log_dit, step=i_episode)

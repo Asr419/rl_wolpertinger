@@ -39,6 +39,7 @@ class AlphaIntentUserState(AbstractUserState):
         self.tgt_feature_idx = tgt_feature_idx
         # called p_uh in the paper
         user_state = self.generate_state(self.user_features)
+        self.user_state_init = user_state.clone()
         self.register_buffer("user_state", user_state)
 
     def generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
@@ -63,3 +64,6 @@ class AlphaIntentUserState(AbstractUserState):
         )
 
         return user_state
+
+    def reset_state(self) -> None:
+        self.user_state = self.user_state_init
