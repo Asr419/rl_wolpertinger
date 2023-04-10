@@ -2,9 +2,24 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import MinMaxScaler, RobustScaler
 
-FEATS_PREPROCESSING = ["year", "popularity", "key", "tempo", "duration_ms"]
+FEATS_PREPROCESSING = [
+    "year",
+    "popularity",
+    "valence",
+    "danceability",
+    "loudness",
+    "speechiness",
+    "acousticness",
+    "liveness",
+    "key",
+    "mode",
+    "tempo",
+    "instrumentalness",
+    "energy",
+    "duration_ms",
+]
 FINAL_FEATS = [
     "song_id",
     "year",
@@ -32,11 +47,13 @@ if __name__ == "__main__":
     doc_feat = pd.read_feather(dataset_path)
 
     scaler = RobustScaler()
+    min_max_scaler = MinMaxScaler()
 
     print("Normalizing features using: {}".format(scaler.__class__.__name__))
 
     for feat in FEATS_PREPROCESSING:
         doc_feat[feat] = scaler.fit_transform(doc_feat[[feat]])
+        doc_feat[feat] = min_max_scaler.fit_transform(doc_feat[[feat]])
 
     # adding song_id as integer
     doc_feat["song_id"] = np.arange(len(doc_feat))

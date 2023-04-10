@@ -5,7 +5,7 @@ parameters:
   resp_amp_factor:
     value: 10.0
   satisfaction_threshold:
-    value: 0.5
+    value: 0.7
   state_update_rate:
     value: 0.9  
   state_model_cls:
@@ -18,7 +18,7 @@ parameters:
   num_users:
     value: 500
   slate_size:
-    value: 10
+    value: 5
   num_item_features:
     value: 14
   num_candidates:
@@ -27,7 +27,7 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 32
+    value: 128
   gamma:
     value: 1.0
   tau:
@@ -44,7 +44,7 @@ parameters:
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
-    value: "hidden"
+    value: "observable"
   hist_length:
     value: 5
   

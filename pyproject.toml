@@ -17,6 +17,7 @@ tqdm = "^4.65.0"
 PyYAML = "^6.0"
 wandb = "^0.14.0"
 pytorch-lightning = "^2.0.1"
+seaborn = "^0.12.2"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"

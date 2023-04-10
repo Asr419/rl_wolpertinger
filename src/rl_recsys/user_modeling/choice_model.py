@@ -52,8 +52,7 @@ class NormalizableChoiceModel(AbstractChoiceModel):
 
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
-        # torch.any(self._scores >= self.satisfaction_threshold)
-        if (self._scores >= self.satisfaction_threshold).all():
+        if torch.any(self._scores >= self.satisfaction_threshold):
             all_scores = torch.softmax(self._scores, dim=0)
             all_probs = all_scores
             # select the item according to the probability distribution all_probs
@@ -104,4 +103,5 @@ class CosineSimilarityChoiceModel(NormalizableChoiceModel):
         scores = (
             scores + 1
         ) / 2  # normalize cosine values to 0 and 1 for convenience of training
+        # print(scores.max())
         return scores
