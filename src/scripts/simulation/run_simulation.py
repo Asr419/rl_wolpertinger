@@ -235,14 +235,14 @@ if __name__ == "__main__":
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
 
-                if torch.any(selected_doc_feature != 0):
-                    b_u_next = update_belief(
-                        selected_doc_feature=selected_doc_feature,
-                        intent_kind=INTENT_KIND,
-                    )
-                else:
-                    # no item selected -> no update
-                    b_u_next = b_u
+                # if torch.any(selected_doc_feature != 0):
+                b_u_next = update_belief(
+                    selected_doc_feature=selected_doc_feature,
+                    intent_kind=INTENT_KIND,
+                )
+                # else:
+                #     # no item selected -> no update
+                #     b_u_next = b_u
 
                 # push memory
                 replay_memory_dataset.push(

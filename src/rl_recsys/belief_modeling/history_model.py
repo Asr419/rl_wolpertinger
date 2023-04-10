@@ -52,6 +52,25 @@ class AvgHistoryModel(AbstractHistoryModel):
         return std_hist_vec
 
 
+class LastObservationModel(AbstractHistoryModel):
+    """Modeling session history information."""
+
+    def __init__(self, num_doc_features: int, memory_length: int = 10):
+        super().__init__(num_doc_features=num_doc_features)
+        self.memory_length = memory_length
+
+    def _init_history_vector(self) -> torch.Tensor:
+        # initialize the history vector with zeros
+        return torch.zeros(self.num_doc_features).unsqueeze(0)
+
+    def forward(self, observation: torch.Tensor) -> torch.Tensor:
+        """Return the standardized avg of features of documents observed."""
+
+        std_hist_vec = observation
+
+        return std_hist_vec
+
+
 class GRUModel(AbstractHistoryModel):
     def __init__(
         self,
