@@ -7,7 +7,7 @@ parameters:
   satisfaction_threshold:
     value: 0.5
   state_update_rate:
-    value: 1  
+    value: 0.8  
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -18,16 +18,16 @@ parameters:
   num_users:
     value: 1
   slate_size:
-    value: 5
+    value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 20
+    value: 100
   retrieval_model:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 32
+    value: 128
   gamma:
     value: 1.0
   tau:
@@ -50,4 +50,4 @@ parameters:
   
 #reproducibility
   seed: 
-    value: 3005
+    value: 69111

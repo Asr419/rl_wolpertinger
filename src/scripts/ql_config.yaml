@@ -16,7 +16,7 @@ parameters:
     value: CosineResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 500
+    value: 1
   slate_size:
     value: 10
   num_item_features:
@@ -27,7 +27,7 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 32
+    value: 1
   gamma:
     value: 1.0
   tau:

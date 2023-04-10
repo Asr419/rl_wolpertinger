@@ -36,25 +36,29 @@ def optimize_model(batch):
     )  # type: ignore
 
     # Q(s', a): [batch_size, 1]
-    cand_qtgt_list = []
-    for b in range(next_state_batch.shape[0]):
-        next_state = next_state_batch[b, :]
-        candidates = candidates_batch[b, :, :]
 
-        next_state_rep = next_state.repeat((candidates.shape[0], 1))
-        cand_qtgt = bf_agent.agent.compute_q_values(
-            next_state_rep, candidates, use_policy_net=False
-        )  # type: ignore
+    with torch.no_grad():
+        cand_qtgt_list = []
+        for b in range(next_state_batch.shape[0]):
+            next_state = next_state_batch[b, :]
+            candidates = candidates_batch[b, :, :]
 
-        choice_model.score_documents(next_state, candidates)
-        # [num_candidates, 1]
-        scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
-        # max over Q(s', a)
-        scores_tens = torch.softmax(scores_tens, dim=0)
-        cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+            next_state_rep = next_state.repeat((candidates.shape[0], 1))
+            cand_qtgt = bf_agent.agent.compute_q_values(
+                next_state_rep, candidates, use_policy_net=False
+            )  # type: ignore
+
+            choice_model.score_documents(next_state, candidates)
+            # [num_candidates, 1]
+            scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
+            # max over Q(s', a)
+            # scores_tens = torch.softmax(scores_tens, dim=0)
+
+            cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
     expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
+    # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
 
     # Optimize the model
@@ -220,10 +224,10 @@ if __name__ == "__main__":
         print("++++++++")
         while not is_terminal:
             with torch.no_grad():
-                cos_sim = torch.nn.functional.cosine_similarity(
-                    env.curr_user.get_state(), candidate_docs_repr, dim=1
-                )
-                max_achievable = cos_sim.max()
+                # cos_sim = torch.nn.functional.cosine_similarity(
+                #     env.curr_user.get_state(), candidate_docs_repr, dim=1
+                # )
+                # max_achievable = cos_sim.max()
 
                 b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
 
@@ -243,7 +247,7 @@ if __name__ == "__main__":
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
 
-                diff_to_best.append(max_achievable - response / resp_amp_factor)
+                # diff_to_best.append(max_achievable - response / resp_amp_factor)
 
                 # if torch.any(selected_doc_feature != 0):
                 b_u_next = update_belief(
@@ -280,23 +284,23 @@ if __name__ == "__main__":
                 # accumulate loss for each episode
                 loss.append(batch_loss)
 
-        cos_sim = torch.nn.functional.cosine_similarity(
-            env.curr_user.get_state(), candidate_docs_repr, dim=1
-        )
-        print(cos_sim.max())
-        print(cos_sim.min())
-        print(cos_sim.mean())
-        print("++++++++")
+        # cos_sim = torch.nn.functional.cosine_similarity(
+        #     env.curr_user.get_state(), candidate_docs_repr, dim=1
+        # )
+        # print(cos_sim.max())
+        # print(cos_sim.min())
+        # print(cos_sim.mean())
+        # print("++++++++")
 
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_reward = torch.sum(torch.tensor(reward))
 
-        ep_diff_to_best = torch.mean(torch.tensor(diff_to_best))
+        # ep_diff_to_best = torch.mean(torch.tensor(diff_to_best))
 
         log_dit = {
             "cum_reward": ep_reward,
             "avg_reward": ep_avg_reward,
-            "diff_to_best": ep_diff_to_best,
+            # "diff_to_best": ep_diff_to_best,
         }
         if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
@@ -304,11 +308,11 @@ if __name__ == "__main__":
         wandb.log(log_dit, step=i_episode)
 
         print(
-            "Loss: {}, Reward: {}, Cum_Rew: {}, Diff_Best: {}".format(
+            "Loss: {}, Reward: {}, Cum_Rew: {}".format(
                 torch.mean(torch.tensor(loss)),
                 ep_avg_reward,
                 ep_reward,
-                ep_diff_to_best,
+                # ep_diff_to_best,
             )
         )
         save_dict["ep_reward"].append(ep_reward)

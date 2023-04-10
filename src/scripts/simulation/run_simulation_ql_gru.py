@@ -193,6 +193,14 @@ if __name__ == "__main__":
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
 
+        print("NEW EPISODE")
+        cos_sim = torch.nn.functional.cosine_similarity(
+            env.curr_user.get_state(), candidate_docs_repr, dim=1
+        )
+        print(cos_sim.max())
+        print(cos_sim.min())
+        print(cos_sim.mean())
+        print("++++++++")
         while not is_terminal:
             with torch.no_grad():
                 b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))

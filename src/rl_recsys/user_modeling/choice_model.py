@@ -48,13 +48,12 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         assert (
             self._scores is not None
         ), "Scores are not computed yet. call score_documents() first."
-        all_scores = self._scores
-
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
         if torch.any(self._scores >= self.satisfaction_threshold):
             all_probs = torch.softmax(self._scores, dim=0)
             # select the item according to the probability distribution all_probs
+
             selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
 
         return selected_index
