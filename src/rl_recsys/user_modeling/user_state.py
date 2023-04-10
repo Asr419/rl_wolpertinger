@@ -18,10 +18,9 @@ class AbstractUserState(nn.Module, metaclass=abc.ABCMeta):
         """Generate the user hidden state"""
         pass
 
-    def update_state(self, selected_doc_feature: torch.Tensor) -> torch.Tensor:
+    def update_state(self, selected_doc_feature: torch.Tensor) -> None:
         w = self.state_update_rate
         self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
-        return self.user_state
 
 
 class AlphaIntentUserState(AbstractUserState):

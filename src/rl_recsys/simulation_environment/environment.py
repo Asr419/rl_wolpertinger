@@ -63,13 +63,13 @@ class MusicGym(gym.Env):
             response = self.curr_user.response_model.generate_response(
                 self.p_uh, selected_doc_feature
             )
-            # update user state
-            self.curr_user.state_model.update_state(
-                selected_doc_feature=selected_doc_feature
-            )
+        # update user state
+        self.curr_user.state_model.update_state(
+            selected_doc_feature=selected_doc_feature
+        )
 
-        self.curr_user.update_budget(response)
-        # self.curr_user.update_budget_avg()
+        # self.curr_user.update_budget(response)
+        self.curr_user.update_budget_avg()
 
         is_terminal = self.curr_user.is_terminal()
         info = {}
@@ -84,7 +84,8 @@ class MusicGym(gym.Env):
         # initialize user hidden state
         self.p_uh = self.curr_user.get_state()
         # retrieve candidate documents
-        candidate_docs = self.rec_model.recommend(user.features.to("cpu"), self.k)
+        # candidate_docs = self.rec_model.recommend(user.features.to("cpu"), self.k)
+        candidate_docs = self.rec_model.recommend_dot(user.features.to("cpu"), self.k)
         self.candidate_docs = torch.Tensor(candidate_docs).to(device=self.device)
 
     def render(self):

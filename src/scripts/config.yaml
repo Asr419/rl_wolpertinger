@@ -5,7 +5,7 @@ parameters:
   resp_amp_factor:
     value: 10.0
   satisfaction_threshold:
-    value: 0.7
+    value: 0.5
   state_update_rate:
     value: 0.9  
   state_model_cls:
@@ -18,16 +18,16 @@ parameters:
   num_users:
     value: 500
   slate_size:
-    value: 5
+    value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 100
+    value: 500
   retrieval_model:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 128
+    value: 32
   gamma:
     value: 1.0
   tau:

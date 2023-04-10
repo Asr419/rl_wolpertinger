@@ -1,3 +1,4 @@
+from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     rec_model = ContentSimilarityRec(item_feature_matrix=item_features)
 
     ################## USER SAMPLER ###################
-    feat_gen = NormalUserFeaturesGenerator()
+    feat_gen = UniformFeaturesGenerator()
     state_model_cls = class_name_to_class[state_model_cls]
     choice_model_cls = class_name_to_class[choice_model_cls]
     response_model_cls = class_name_to_class[response_model_cls]
@@ -189,6 +190,7 @@ if __name__ == "__main__":
     for i_episode in tqdm(range(NUM_EPISODES)):
         reward = []
         loss = []
+        diff_to_best = []
 
         env.reset()
         is_terminal = False
@@ -207,15 +209,20 @@ if __name__ == "__main__":
         else:
             raise ValueError("invalid intent_kind")
 
+        print("NEW EPISODE")
+        cos_sim = torch.nn.functional.cosine_similarity(
+            env.curr_user.get_state(), candidate_docs_repr, dim=1
+        )
+        print(cos_sim.max())
+        print(cos_sim.min())
+        print(cos_sim.mean())
+        print("++++++++")
         while not is_terminal:
             with torch.no_grad():
-                # cos_sim = torch.nn.functional.cosine_similarity(
-                #     env.curr_user.get_state(), candidate_docs_repr, dim=1
-                # )
-                # print(cos_sim.max())
-                # print(cos_sim.min())
-                # print(cos_sim.mean())
-                # print("++++++++")
+                cos_sim = torch.nn.functional.cosine_similarity(
+                    env.curr_user.get_state(), candidate_docs_repr, dim=1
+                )
+                max_achievable = cos_sim.max()
 
                 b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
 
@@ -234,6 +241,8 @@ if __name__ == "__main__":
                 slate = bf_agent.get_action(scores, q_val)
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
+
+                diff_to_best.append(max_achievable - response / resp_amp_factor)
 
                 # if torch.any(selected_doc_feature != 0):
                 b_u_next = update_belief(
@@ -270,12 +279,23 @@ if __name__ == "__main__":
                 # accumulate loss for each episode
                 loss.append(batch_loss)
 
+        cos_sim = torch.nn.functional.cosine_similarity(
+            env.curr_user.get_state(), candidate_docs_repr, dim=1
+        )
+        print(cos_sim.max())
+        print(cos_sim.min())
+        print(cos_sim.mean())
+        print("++++++++")
+
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_reward = torch.sum(torch.tensor(reward))
+
+        ep_diff_to_best = torch.mean(torch.tensor(diff_to_best))
 
         log_dit = {
             "cum_reward": ep_reward,
             "avg_reward": ep_avg_reward,
+            "diff_to_best": ep_diff_to_best,
         }
         if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
             log_dit["loss"] = torch.mean(torch.tensor(loss))
@@ -283,10 +303,11 @@ if __name__ == "__main__":
         wandb.log(log_dit, step=i_episode)
 
         print(
-            "Loss: {}, Reward: {}, Cum_Rew: {}".format(
+            "Loss: {}, Reward: {}, Cum_Rew: {}, Diff_Best: {}".format(
                 torch.mean(torch.tensor(loss)),
                 ep_avg_reward,
                 ep_reward,
+                ep_diff_to_best,
             )
         )
         save_dict["ep_reward"].append(ep_reward)

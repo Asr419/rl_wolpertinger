@@ -25,15 +25,33 @@ class ContentSimilarityRec:
         top_k_items = np.argsort(cos_scores)[-k:]
         return np.array(top_k_items.tolist())
 
-    def recommend_random(
+    def recommend_random(self, k=10) -> npt.NDArray[np.int_]:
+        # recommend k items at random
+        num_items = self.item_feature_matrix.shape[0]
+        item_ids = np.arange(num_items)
+        np.random.shuffle(item_ids)
+        top_k_items = item_ids[:k]
+        return np.array(top_k_items.tolist())
+
+    def recommend_dot(
         self,
         user_features: npt.NDArray[np.float64],
         k=10,
     ) -> npt.NDArray[np.int_]:
-        seed = hash(tuple(user_features)) % (2**32 - 1)
-        np.random.seed(seed)
-        top_k_items = np.random.choice(self.item_feature_matrix.shape[0], k)
+        # compute the similarity between the user and the items using dot product
+        scores = np.dot(user_features, self.item_feature_matrix.T)
+        top_k_items = np.argsort(scores)[-k:]
         return np.array(top_k_items.tolist())
+
+    # def recommend_random(
+    #     self,
+    #     user_features: npt.NDArray[np.float64],
+    #     k=10,
+    # ) -> npt.NDArray[np.int_]:
+    #     seed = hash(tuple(user_features)) % (2**32 - 1)
+    #     np.random.seed(seed)
+    #     top_k_items = np.random.choice(self.item_feature_matrix.shape[0], k)
+    #     return np.array(top_k_items.tolist())
 
 
 class Random_Recommender:

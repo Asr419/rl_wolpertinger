@@ -30,3 +30,14 @@ class NormalUserFeaturesGenerator(AbstractFeaturesGenerator):
 
     def __call__(self, num_features: int) -> npt.NDArray[np.float64]:
         return np.random.normal(self.mean, self.std, num_features)
+
+
+class UniformFeaturesGenerator(AbstractFeaturesGenerator):
+    """Uniform distribution user state generator"""
+
+    def __init__(self, min_val: float = -1.0, max_val: float = 1.0):
+        self.min_val = min_val
+        self.max_val = max_val
+
+    def __call__(self, num_features: int):
+        return np.random.uniform(self.min_val, self.max_val, num_features)
