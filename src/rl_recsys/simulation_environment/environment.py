@@ -51,6 +51,7 @@ class MusicGym(gym.Env):
 
         # ???
         doc_id = slate[selected_doc_idx]
+        # print(doc_id)
 
         # check if user has selected a document
         selected_doc_feature = doc_features[selected_doc_idx, :]
@@ -75,8 +76,8 @@ class MusicGym(gym.Env):
         if selected_doc_idx == self.curr_user.choice_model.no_selection_token:
             print(self.curr_user.get_state())
 
-        self.curr_user.update_budget(response)
-        # self.curr_user.update_budget_avg()
+        # self.curr_user.update_budget(response)
+        self.curr_user.update_budget_avg()
 
         is_terminal = self.curr_user.is_terminal()
         info = {}
@@ -92,8 +93,8 @@ class MusicGym(gym.Env):
         self.curr_user.state_model.reset_state()
         # initialize user hidden state
         # retrieve candidate documents
-        candidate_docs = self.rec_model.recommend_dot(user.features.to("cpu"), self.k)
-        # candidate_docs = self.rec_model.recommend_random(k=self.k)
+        # candidate_docs = self.rec_model.recommend_dot(user.features.to("cpu"), self.k)
+        candidate_docs = self.rec_model.recommend_random(k=self.k)
         self.candidate_docs = torch.Tensor(candidate_docs).to(device=self.device)
         # candidate_docs_repr = torch.Tensor(
         #     self.doc_catalogue.get_docs_features(candidate_docs)

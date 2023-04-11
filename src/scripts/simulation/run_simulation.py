@@ -11,7 +11,8 @@ print("DEVICE: ", DEVICE)
 def update_belief(selected_doc_feature: torch.Tensor, intent_kind: str):
     b_u_next = None
     if intent_kind == "random":
-        b_u_next = torch.randn(14)
+        # create a randm tensor between -1 and 1
+        b_u_next = torch.randn(14) * 2 - 1
     if intent_kind == "hidden":
         b_u_next = bf_agent.update_belief(selected_doc_feature)
     if intent_kind == "observable":
@@ -206,8 +207,9 @@ if __name__ == "__main__":
         candidate_docs_repr = torch.Tensor(
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
+
         if INTENT_KIND == "random":
-            b_u = torch.randn(14).to(DEVICE)
+            b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
         elif INTENT_KIND == "hidden":
             b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
         elif INTENT_KIND == "observable":
@@ -219,10 +221,10 @@ if __name__ == "__main__":
         cos_sim = torch.nn.functional.cosine_similarity(
             env.curr_user.get_state(), candidate_docs_repr, dim=1
         )
-        print(cos_sim.max())
-        print(cos_sim.min())
-        print(cos_sim.mean())
-        print("++++++++")
+        # print(cos_sim.max())
+        # print(cos_sim.min())
+        # print(cos_sim.mean())
+        # print("++++++++")
 
         while not is_terminal:
             with torch.no_grad():
@@ -273,8 +275,10 @@ if __name__ == "__main__":
                         b_u_next,
                     )
                 )
+                # print(b_u)
                 b_u = b_u_next
 
+                # print(response)
                 reward.append(response)
 
             # optimize model
@@ -292,10 +296,10 @@ if __name__ == "__main__":
         cos_sim = torch.nn.functional.cosine_similarity(
             env.curr_user.get_state(), candidate_docs_repr, dim=1
         )
-        print(cos_sim.max())
-        print(cos_sim.min())
-        print(cos_sim.mean())
-        print("++++++++")
+        # print(cos_sim.max())
+        # print(cos_sim.min())
+        # print(cos_sim.mean())
+        # print("++++++++")
 
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_reward = torch.sum(torch.tensor(reward))

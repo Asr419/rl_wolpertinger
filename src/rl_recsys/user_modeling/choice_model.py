@@ -51,9 +51,8 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
         # if torch.any(self._scores >= satisfaction_threshold):
-        all_probs = self._scores
+        all_probs = torch.softmax(self._scores, dim=0)
         # select the item according to the probability distribution all_probs
-
         selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
 
         return selected_index
@@ -65,8 +64,8 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         pass
 
     def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
-        logits = self._score_documents(user_state, docs_repr)
-        self._scores = torch.softmax(logits, dim=0)
+        self._scores = self._score_documents(user_state, docs_repr)
+
         # normalize logits sum to 1
         # Use softmax scores instead of exponential scores to avoid overflow.
 
@@ -80,7 +79,10 @@ class DotProductChoiceModel(NormalizableChoiceModel):
     def _score_documents(
         self, user_state: torch.Tensor, docs_repr: torch.Tensor
     ) -> torch.Tensor:
-        return torch.stack([torch.dot(user_state, doc_repr) for doc_repr in docs_repr])
+        # Calculate dot product between user_state and each document representation
+        scores = torch.mm(user_state.unsqueeze(0), docs_repr.t()).squeeze(0)
+        # normalize dot product values to 0 and 1 for convenience of training
+        return scores
 
 
 class CosineSimilarityChoiceModel(NormalizableChoiceModel):
@@ -94,8 +96,7 @@ class CosineSimilarityChoiceModel(NormalizableChoiceModel):
     ) -> torch.Tensor:
         # Calculate cosine similarity between user_state and each document representation
         scores = F.cosine_similarity(user_state, docs_repr)
-        scores = (
-            scores + 1
-        ) / 2  # normalize cosine values to 0 and 1 for convenience of training
+        scores = scores + 1
+        # normalize cosine values to 0 and 1 for convenience of training
         # print(scores.max())
         return scores

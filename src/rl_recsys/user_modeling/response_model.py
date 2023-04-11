@@ -68,17 +68,6 @@ class AmplifiedResponseModel(AbstractResponseModel):
         return super().generate_null_response() * self.amp_factor
 
 
-class DotProductResponseModel(AbstractResponseModel):
-    def generate_response(
-        self,
-        estimated_user_state: torch.Tensor,
-        doc_repr: torch.Tensor,
-    ) -> float:
-        """dot product response model"""
-        r = torch.dot(estimated_user_state, doc_repr)
-        return r
-
-
 class CosineResponseModel(AmplifiedResponseModel):
     def _generate_response(
         self,
@@ -88,4 +77,14 @@ class CosineResponseModel(AmplifiedResponseModel):
         satisfaction = torch.nn.functional.cosine_similarity(
             estimated_user_state, doc_repr, dim=0
         )
+        return satisfaction
+
+
+class DotProductResponseModel(AmplifiedResponseModel):
+    def _generate_response(
+        self,
+        estimated_user_state: torch.Tensor,
+        doc_repr: torch.Tensor,
+    ) -> float:
+        satisfaction = torch.dot(estimated_user_state, doc_repr)
         return satisfaction

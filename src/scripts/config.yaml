@@ -3,31 +3,31 @@ program: run_simulation.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
-    value: 5.0
+    value: 10.0
   satisfaction_threshold:
     value: 0.5
   state_update_rate:
-    value: 0.8
+    value: 0.99
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
-    value: CosineSimilarityChoiceModel
+    value: DotProductChoiceModel
   response_model_cls:
-    value: CosineResponseModel
+    value: DotProductResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 100
+    value: 1000
   slate_size:
-    value: 10
+    value: 5
   num_item_features:
     value: 14
   num_candidates:
-    value: 200
+    value: 100
   retrieval_model:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 10
+    value: 32
   gamma:
     value: 1.0
   tau:
@@ -40,7 +40,7 @@ parameters:
   model:
     value: SlateQ_Cosine
   history_model_cls:
-    value: LastObservationModel
+    value: AvgHistoryModel
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
