@@ -3,11 +3,11 @@ program: run_simulation_ql_gru.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
-    value: 10.0
+    value: 5.0
   satisfaction_threshold:
     value: 0.5
   state_update_rate:
-    value: 0.9  
+    value: 0.8
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -16,18 +16,18 @@ parameters:
     value: CosineResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 1
+    value: 100
   slate_size:
     value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 100
+    value: 200
   retrieval_model:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 1
+    value: 128
   gamma:
     value: 1.0
   tau:
@@ -35,7 +35,7 @@ parameters:
   lr:
     value: 1e-4
   num_episodes:
-    value: 1600
+    value: 1000
   ######## Models related parameters ########
   model:
     value: SlateQ_Cosine
@@ -50,4 +50,6 @@ parameters:
   
   #reproducibility
   seed: 
-    value: 4005
+    value: 20202
+  working_model:
+    value: "TopK_gru"

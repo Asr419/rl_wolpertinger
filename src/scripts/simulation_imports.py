@@ -27,7 +27,11 @@ from rl_recsys.agent_modeling.slate_generator import (
     OptimalSlateGenerator,
     TopKSlateGenerator,
 )
-from rl_recsys.belief_modeling.history_model import AvgHistoryModel, GRUModel
+from rl_recsys.belief_modeling.history_model import (
+    AvgHistoryModel,
+    GRUModel,
+    LastObservationModel,
+)
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue
 from rl_recsys.retrieval import ContentSimilarityRec
 from rl_recsys.simulation_environment.environment import MusicGym
@@ -56,4 +60,5 @@ class_name_to_class = {
     "DiverseSlateGenerator": DiverseSlateGenerator,
     "GreedySlateGenerator": GreedySlateGenerator,
     "OptimalSlateGenerator": OptimalSlateGenerator,
+    "LastObservationModel": LastObservationModel,
 }

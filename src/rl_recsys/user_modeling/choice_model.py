@@ -30,7 +30,7 @@ class AbstractChoiceModel(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def choose_document(self) -> int:
+    def choose_document(self, satisfaction_threshold) -> int:
         # return the index of the chosen document in the slate
         pass
 
@@ -50,11 +50,11 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         ), "Scores are not computed yet. call score_documents() first."
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
-        if torch.any(self._scores >= self.satisfaction_threshold):
-            all_probs = torch.softmax(self._scores, dim=0)
-            # select the item according to the probability distribution all_probs
+        # if torch.any(self._scores >= satisfaction_threshold):
+        all_probs = self._scores
+        # select the item according to the probability distribution all_probs
 
-            selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
+        selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
 
         return selected_index
 
@@ -65,7 +65,8 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         pass
 
     def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
-        self._scores = self._score_documents(user_state, docs_repr)
+        logits = self._score_documents(user_state, docs_repr)
+        self._scores = torch.softmax(logits, dim=0)
         # normalize logits sum to 1
         # Use softmax scores instead of exponential scores to avoid overflow.
 

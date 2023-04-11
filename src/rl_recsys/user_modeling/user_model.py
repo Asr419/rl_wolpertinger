@@ -55,8 +55,8 @@ class UserModel(nn.Module):
         return self.budget <= 0
 
     def update_budget(self, response: float) -> None:
-        if response < 0.0:
-            depreciation = self.avg_song_duration * 1.5
+        if response < 4.0:
+            depreciation = self.avg_song_duration * 2.5
         else:
             depreciation = self.avg_song_duration * 0.5
         self.budget -= depreciation
