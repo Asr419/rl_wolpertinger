@@ -93,8 +93,8 @@ class MusicGym(gym.Env):
         self.curr_user.state_model.reset_state()
         # initialize user hidden state
         # retrieve candidate documents
-        # candidate_docs = self.rec_model.recommend_dot(user.features.to("cpu"), self.k)
-        candidate_docs = self.rec_model.recommend_random(k=self.k)
+        candidate_docs = self.rec_model.recommend_dot(user.features.to("cpu"), self.k)
+        # candidate_docs = self.rec_model.recommend_random(k=self.k)
         self.candidate_docs = torch.Tensor(candidate_docs).to(device=self.device)
         # candidate_docs_repr = torch.Tensor(
         #     self.doc_catalogue.get_docs_features(candidate_docs)

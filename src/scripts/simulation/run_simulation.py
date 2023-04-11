@@ -247,6 +247,7 @@ if __name__ == "__main__":
                     user_state=b_u, docs_repr=candidate_docs_repr
                 )
                 scores = torch.Tensor(choice_model.scores).to(DEVICE)
+                scores = torch.softmax(scores, dim=0)
                 q_val = q_val.squeeze()
 
                 slate = bf_agent.get_action(scores, q_val)

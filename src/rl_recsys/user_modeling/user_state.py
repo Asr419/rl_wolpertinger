@@ -52,8 +52,8 @@ class AlphaIntentUserState(AbstractUserState):
     def generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
         user_state = torch.Tensor(user_features).clone()
         # sample alpha from a uniform distribution
-        # alpha = torch.rand(1)
-        alpha = 0.8
+        alpha = torch.rand(1)
+        # alpha = 0.8
         alpha = 0.8 * alpha + 0.2  # alpha between 0.2 and 1
 
         inv_alpha = 1 - alpha
