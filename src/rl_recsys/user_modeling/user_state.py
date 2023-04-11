@@ -71,7 +71,7 @@ class AlphaIntentUserState(AbstractUserState):
 
     #     return user_state
     def generate_state(self, user_features: npt.NDArray[np.float_]) -> torch.Tensor:
-        user_state = user_features.copy()
+        user_state = user_features.cpu().numpy().copy()  # type: ignore
 
         tgt_feature_idx = None
         tgt_feat_val = -1
@@ -81,8 +81,8 @@ class AlphaIntentUserState(AbstractUserState):
 
         # sample alpha from a uniform distribution
         alpha = np.random.uniform()
-        print(alpha)
-        print(tgt_feature_idx)
+        # print(alpha)
+        # print(tgt_feature_idx)
 
         pos_sum = np.sum(user_state[user_state > 0])
         pos_val_count = len(user_state[user_state > 0])
@@ -94,6 +94,8 @@ class AlphaIntentUserState(AbstractUserState):
             user_state[user_state > 0] /= user_state[tgt_feature_idx]
 
         user_state = torch.Tensor(user_state)
+        print(user_state)
+        print(user_features)
         return user_state
 
     def reset_state(self) -> None:
