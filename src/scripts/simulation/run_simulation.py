@@ -251,7 +251,7 @@ if __name__ == "__main__":
                     user_state=b_u, docs_repr=candidate_docs_repr
                 )
                 scores = torch.Tensor(choice_model.scores).to(DEVICE)
-                # scores = torch.softmax(scores, dim=0)
+                scores = torch.softmax(scores, dim=0)
                 q_val = q_val.squeeze()
 
                 slate = bf_agent.get_action(scores, q_val)
@@ -323,7 +323,8 @@ if __name__ == "__main__":
             "max_cum": ep_max_cum,
             "avg_avg": ep_avg_avg,
             "avg_cum": ep_avg_cum,
-            "best_avg_diff": ep_max_avg - ep_avg_reward,
+            "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
+            "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
         }
 
         if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):

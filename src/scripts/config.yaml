@@ -7,7 +7,7 @@ parameters:
   satisfaction_threshold:
     value: 0.5
   state_update_rate:
-    value: 0.99
+    value: 0.95
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -16,7 +16,7 @@ parameters:
     value: DotProductResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 10
+    value: 1000
   slate_size:
     value: 5
   num_item_features:
@@ -27,11 +27,11 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 8
+    value: 4
   gamma:
     value: 1.0
   tau:
-    value: 0.005
+    value: 0.01
   lr:
     value: 1e-4
   num_episodes:
