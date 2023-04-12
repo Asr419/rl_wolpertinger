@@ -20,14 +20,14 @@ class AbstractUserState(nn.Module, metaclass=abc.ABCMeta):
 
     def update_state(self, selected_doc_feature: torch.Tensor) -> None:
         # generate a random integer between 0 and 1
-        random = np.random.randint(0, 1)
-        if random > 1.0:
-            # 10% chance of boredom
-            w = self.state_update_rate
-            self.user_state = w * self.user_state - (1 - w) * selected_doc_feature
-        else:
-            w = self.state_update_rate
-            self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
+        # random = np.random.randint(0, 1)
+        # if random > 1.0:
+        #     # 10% chance of boredom
+        #     w = self.state_update_rate
+        #     self.user_state = w * self.user_state - (1 - w) * selected_doc_feature
+        # else:
+        w = self.state_update_rate
+        self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
 
 
 class AlphaIntentUserState(AbstractUserState):
