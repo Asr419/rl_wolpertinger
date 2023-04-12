@@ -40,11 +40,11 @@ parameters:
   model:
     value: SlateQ_Cosine
   history_model_cls:
-    value: LastObservationModel
+    value: AvgHistoryModel
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
-    value: "observable"
+    value: "hidden"
   hist_length:
     value: 5
   
