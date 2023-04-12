@@ -83,7 +83,7 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         slate_gen,
         input_size: int,
         output_size: int,
-        hidden_dims: list[int] = [14,7],
+        hidden_dims: list[int] = [1],
         tau: float = 0.001,
     ) -> None:
         # init super classes
