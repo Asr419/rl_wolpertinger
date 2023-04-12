@@ -5,8 +5,6 @@ from scripts.simulation_imports import *
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
-# Seeds for reproducibility
-
 
 def update_belief(selected_doc_feature: torch.Tensor, intent_kind: str):
     b_u_next = None

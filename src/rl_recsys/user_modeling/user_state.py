@@ -72,8 +72,8 @@ class AlphaIntentUserState(AbstractUserState):
             user_state[user_state > 0] /= user_state[tgt_feature_idx]
 
         user_state = torch.Tensor(user_state)
-        print(user_state)
-        print(user_features)
+        # print(user_state)
+        # print(user_features)
         return user_state
 
     def reset_state(self) -> None:
