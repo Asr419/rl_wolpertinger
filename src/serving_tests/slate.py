@@ -4,7 +4,7 @@ from scripts.simulation_imports import *
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 PATH = "src/saved_models/random_slateq/04-08_21-00-37/model.pt"
-SEQ_LEN = 5
+
 
 
 def update_belief(selected_doc_feature: torch.Tensor, intent_kind: str):
@@ -59,6 +59,7 @@ if __name__ == "__main__":
     ######## Models related parameters ########
     history_model_cls = config["parameters"]["history_model_cls"]["value"]
     slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
+    SEQ_LEN = config["parameters"]["hist_length"]["value"]
 
     ##################################################
     #################### CATALOGUE ###################
@@ -211,3 +212,4 @@ if __name__ == "__main__":
                 ep_reward,
             )
         )
+        

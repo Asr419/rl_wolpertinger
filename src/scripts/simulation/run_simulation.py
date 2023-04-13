@@ -332,7 +332,9 @@ if __name__ == "__main__":
 
         save_dict["ep_cum_reward"].append(ep_cum_reward)
         save_dict["ep_avg_reward"].append(ep_avg_reward)
-        save_dict["loss"].append(loss)
+        save_dict["loss"].append(torch.mean(torch.tensor(loss)))
+        save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
+        save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
     if INTENT_KIND == "random":

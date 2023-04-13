@@ -47,6 +47,8 @@ from rl_recsys.user_modeling.response_model import (
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
+from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
+from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 
 class_name_to_class = {
     "AlphaIntentUserState": AlphaIntentUserState,

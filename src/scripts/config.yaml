@@ -27,7 +27,7 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 4
+    value: 32
   gamma:
     value: 1.0
   tau:
@@ -46,10 +46,13 @@ parameters:
   intent_kind:
     value: "hidden"
   hist_length:
-    value: 5
-  
+    value: 20
+#wolpertinger policy
+  nearest_neighbours:
+    value: 50
 #reproducibility
   seed: 
     value: 20202
   working_model:
     value: "TopK_random"
+  

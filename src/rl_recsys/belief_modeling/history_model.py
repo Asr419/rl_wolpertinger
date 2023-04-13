@@ -76,7 +76,7 @@ class GRUModel(AbstractHistoryModel):
         self,
         num_doc_features: int,
         hidden_size: int = 14,
-        num_layers: int = 10,
+        num_layers: int = 1,
     ):
         super().__init__(num_doc_features=num_doc_features)
 

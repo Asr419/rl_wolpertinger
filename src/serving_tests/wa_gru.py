@@ -1,61 +1,9 @@
 from scripts.simulation_imports import *
-from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
-
-
-def optimize_model(batch):
-    optimizer.zero_grad()
-
-    (
-        state_batch,  # [batch_size, num_item_features]
-        selected_doc_feat_batch,  # [batch_size, num_item_features]
-        candidates_batch,  # [batch_size, num_candidates, num_item_features]
-        reward_batch,  # [batch_size, 1]
-        gru_buffer_batch,  # [batch_size, num_item_features]
-    ) = batch
-
-    # Q(s, a): [batch_size, 1]
-    q_val = bf_agent.agent.compute_q_values(
-        state_batch, selected_doc_feat_batch, use_policy_net=True
-    )  # type: ignore
-
-    # compute s'
-    gru_out = bf_agent.update_belief(gru_buffer_batch)
-    next_state_batch = gru_out[
-        :, -1, :
-    ]  # keep only the last gru output for every batch
-
-    # Q(s', a): [batch_size, 1]
-    
-    cand_qtgt_list = []
-    for b in range(next_state_batch.shape[0]):
-        next_state = next_state_batch[b, :]
-        candidates = candidates_batch[b, :, :]
-        candidates = Actor.k_nearest(next_state, candidates)
-
-        next_state_rep = next_state.repeat((candidates.shape[0], 1))
-        cand_qtgt = bf_agent.agent.compute_q_values(
-            next_state_rep, candidates, use_policy_net=False
-        )  # type: ignore
-
-        choice_model.score_documents(next_state, candidates)
-        # [num_candidates, 1]
-        scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
-        # max over Q(s', a)
-        cand_qtgt_list.append((cand_qtgt * scores_tens).max())
-
-    q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
-    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
-    loss = criterion(q_val, expected_q_values)
-
-    # Optimize the model
-    loss.backward()
-    optimizer.step()
-    return loss
-
+PATH = "src/saved_models/random_slateq/04-08_21-00-37/model.pt"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -72,6 +20,7 @@ if __name__ == "__main__":
     wandb.init(project="rl_recsys", config=config["parameters"])
 
     ######## User related parameters ########
+    
     state_model_cls = config["parameters"]["state_model_cls"]["value"]
     choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
     response_model_cls = config["parameters"]["response_model_cls"]["value"]
@@ -95,7 +44,6 @@ if __name__ == "__main__":
     LR = float(config["parameters"]["lr"]["value"])
     NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
     SEED = config["parameters"]["seed"]["value"]
-    NEAREST_NEIGHBOURS = config["parameters"]["nearest_neighbours"]["value"]
     pl.seed_everything(SEED)
 
     ######## Models related parameters ########
@@ -174,17 +122,17 @@ if __name__ == "__main__":
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
     is_terminal = False
-    keys = ["ep_reward", "ep_avg_reward", "loss"]
+    keys = ["ep_reward", "ep_avg_reward", "best_rl_avg_diff", "avg_avd_diff"]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
-    Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
+   
 
     for i_episode in tqdm(range(NUM_EPISODES)):
         gru_buff = torch.zeros((1, GRU_SEQ_LEN, NUM_ITEM_FEATURES)).to(DEVICE)
         count = 0
 
         reward = []
-        loss = []
+        
         diff_to_best = []
 
         env.reset()
@@ -211,7 +159,7 @@ if __name__ == "__main__":
         avg_sess = []
         while not is_terminal:
             with torch.no_grad():
-                candidate_docs_repr = Actor.k_nearest(b_u, candidate_docs_repr)
+                
                 ##########################################################################
                 max_sess.append(
                     torch.mm(
@@ -271,23 +219,10 @@ if __name__ == "__main__":
                 b_u = out[0, -1, :]
 
                 reward.append(response)
-
-            # optimize model
-            if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
-                # get a batch of transitions from the replay buffer
-                batch = next(iter(replay_memory_dataloader))
-                for elem in batch:
-                    elem.to(DEVICE)
-                batch_loss = optimize_model(batch)
-                bf_agent.agent.soft_update_target_network()
-
-                # accumulate loss for each episode
-                loss.append(batch_loss)
-
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_cum_reward = torch.sum(torch.tensor(reward))
 
-        loss = torch.mean(torch.tensor(loss))
+        
 
         ep_max_avg = torch.mean(torch.tensor(max_sess))
         ep_max_cum = torch.sum(torch.tensor(max_sess))
@@ -296,8 +231,7 @@ if __name__ == "__main__":
         ep_avg_cum = torch.sum(torch.tensor(avg_sess))
 
         print(
-            "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}:".format(
-                loss,
+            "Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}:".format(
                 ep_avg_reward,
                 ep_cum_reward,
                 ep_max_avg,
@@ -318,34 +252,13 @@ if __name__ == "__main__":
             "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
         }
 
-        if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
-            log_dit["loss"] = loss
+    
 
 
         wandb.log(log_dit, step=i_episode)
 
         save_dict["ep_reward"].append(ep_cum_reward)
         save_dict["ep_avg_reward"].append(ep_avg_reward)
-        save_dict["loss"].append(torch.mean(torch.tensor(loss)))
+       
         save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
         save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
-    now = datetime.now()
-    folder_name = now.strftime("%m-%d_%H-%M-%S")
-    directory = "src/saved_models/hidden_wa/"
-
-    # Create the directory with the folder name
-    path = directory + folder_name
-    os.makedirs(path)
-
-    source_path = "src/scripts/config.yaml"
-    destination_path = path + "/_config.yaml"
-    shutil.copy(source_path, destination_path)
-
-    # Save the model
-    Path = path + "/critic_model.pt"
-    torch.save(bf_agent, Path)
-    Path = path + "/actor_model.pt"
-    torch.save(Actor, Path)
-
-    with open(path + "/logs_dict.pickle", "wb") as f:
-        pickle.dump(save_dict, f)
