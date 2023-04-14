@@ -174,7 +174,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
     is_terminal = False
-    keys = ["ep_reward", "ep_avg_reward", "loss"]
+    keys = ["ep_reward", "ep_avg_reward", "loss","best_rl_avg_diff", "avg_avd_diff"]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
     Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
@@ -331,7 +331,7 @@ if __name__ == "__main__":
         save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
-    directory = "src/saved_models/hidden_wa/"
+    directory = "saved_models/hidden_wa/"
 
     # Create the directory with the folder name
     path = directory + folder_name

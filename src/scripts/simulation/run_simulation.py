@@ -187,7 +187,7 @@ if __name__ == "__main__":
     # Initialize b_u
     b_u = None
 
-    keys = ["ep_reward", "ep_avg_reward", "loss"]
+    keys = ["ep_reward", "ep_avg_reward", "loss","best_rl_avg_diff", "avg_avd_diff"]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
 
@@ -338,11 +338,11 @@ if __name__ == "__main__":
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
     if INTENT_KIND == "random":
-        directory = "src/saved_models/random_slateq/"
+        directory = "saved_models/random_slateq/"
     elif INTENT_KIND == "hidden":
-        directory = "src/saved_models/hidden_slateq/avghistory/"
+        directory = "saved_models/hidden_slateq/avghistory/"
     elif INTENT_KIND == "observable":
-        directory = "src/saved_models/observed_slateq/"
+        directory = "saved_models/observed_slateq/"
 
     # Create the directory with the folder name
     path = directory + folder_name

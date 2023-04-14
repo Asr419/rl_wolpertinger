@@ -43,6 +43,8 @@ def optimize_model(batch):
         choice_model.score_documents(next_state, candidates)
         # [num_candidates, 1]
         scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
+        scores_tens = torch.softmax(scores_tens, dim=0)
+
         # max over Q(s', a)
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
@@ -330,7 +332,7 @@ if __name__ == "__main__":
         save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
-    directory = "src/saved_models/hidden_slateq/gru/"
+    directory = "saved_models/hidden_slateq/gru/"
 
     # Create the directory with the folder name
     path = directory + folder_name
