@@ -27,7 +27,7 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 64
+    value: 32
   gamma:
     value: 1.0
   tau:
@@ -40,11 +40,11 @@ parameters:
   model:
     value: SlateQ_Cosine
   history_model_cls:
-    value: AvgHistoryModel
+    value: LastObservationModel
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
-    value: "observable"
+    value: "hidden"
   hist_length:
     value: 10
 #wolpertinger policy
@@ -52,9 +52,10 @@ parameters:
     value: 50
 #reproducibility
   seed: 
-    value: 16
+    value: 2
+    #[2,3,5,7,11]
     #[20202, 30202,40003,50004,60005]
     #69, 20202, 42, 13, 14, 26, 100, 1
   working_model:
-    value: "TopK_gru"
+    value: "TopK_hidden"
   
