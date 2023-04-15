@@ -17,7 +17,7 @@ def optimize_model(batch):
         gru_buffer_batch,  # [batch_size, num_item_features]
     ) = batch
 
-    print(reward_batch)
+    # print(reward_batch)
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
@@ -163,13 +163,13 @@ if __name__ == "__main__":
     transition_cls = GruTransition
 
     replay_memory_dataset = ReplayMemoryDataset(
-        capacity=34, transition_cls=transition_cls
+        capacity=10_000, transition_cls=transition_cls
     )
     replay_memory_dataloader = DataLoader(
         replay_memory_dataset,
         batch_size=BATCH_SIZE,
         collate_fn=replay_memory_dataset.collate_fn,
-        shuffle=False,
+        # shuffle=False,
     )
 
     criterion = torch.nn.SmoothL1Loss()
@@ -198,6 +198,7 @@ if __name__ == "__main__":
         env.reset()
         # Initialize b_u
         b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+        # b_u = (torch.randn(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
 
         is_terminal = False
         cum_reward = 0
@@ -214,7 +215,8 @@ if __name__ == "__main__":
                 ##########################################################################
                 max_sess.append(
                     torch.mm(
-                        env.curr_user.get_state().unsqueeze(0), candidate_docs_repr.t()
+                        env.curr_user.get_state().unsqueeze(0),
+                        candidate_docs_repr.t(),
                     )
                     .squeeze(0)
                     .max()
@@ -222,7 +224,8 @@ if __name__ == "__main__":
 
                 avg_sess.append(
                     torch.mm(
-                        env.curr_user.get_state().unsqueeze(0), candidate_docs_repr.t()
+                        env.curr_user.get_state().unsqueeze(0),
+                        candidate_docs_repr.t(),
                     )
                     .squeeze(0)
                     .mean()

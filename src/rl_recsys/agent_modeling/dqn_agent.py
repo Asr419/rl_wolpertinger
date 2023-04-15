@@ -6,7 +6,7 @@ from typing import NamedTuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 
 from rl_recsys.agent_modeling.agent import AbstractSlateAgent
 
@@ -29,21 +29,19 @@ class GruTransition(NamedTuple):
     gru_buffer: torch.Tensor
 
 
-class ReplayMemoryDataset(Dataset):
+class ReplayMemoryDataset(IterableDataset):
     def __init__(self, capacity: int, transition_cls):
         self.capacity = capacity
         self.memory = deque([], maxlen=capacity)
         self.Transition = transition_cls
 
+    def __iter__(self):
+        random.shuffle(self.memory)
+        return iter(self.memory)
+
     def push(self, transition):
         """Save a transition"""
         self.memory.append(transition)
-
-    def __getitem__(self, index):
-        return self.memory[index]
-
-    def __len__(self):
-        return len(self.memory)
 
     def collate_fn(self, batch):
         transitions_batch = self.Transition(*zip(*batch))
@@ -52,6 +50,31 @@ class ReplayMemoryDataset(Dataset):
             for field_name in transitions_batch._fields
         ]
         return preprocessed_batch
+
+
+# class ReplayMemoryDataset(Dataset):
+#     def __init__(self, capacity: int, transition_cls):
+#         self.capacity = capacity
+#         self.memory = deque([], maxlen=capacity)
+#         self.Transition = transition_cls
+
+#     def push(self, transition):
+#         """Save a transition"""
+#         self.memory.append(transition)
+
+#     def __getitem__(self, index):
+#         return self.memory[index]
+
+#     def __len__(self):
+#         return len(self.memory)
+
+#     def collate_fn(self, batch):
+#         transitions_batch = self.Transition(*zip(*batch))
+#         preprocessed_batch = [
+#             torch.stack(getattr(transitions_batch, field_name))
+#             for field_name in transitions_batch._fields
+#         ]
+#         return preprocessed_batch
 
 
 class DQNnet(nn.Module):
@@ -83,7 +106,7 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         slate_gen,
         input_size: int,
         output_size: int,
-        hidden_dims: list[int] = [7],
+        hidden_dims: list[int] = [14, 7],
         tau: float = 0.001,
     ) -> None:
         # init super classes
@@ -109,6 +132,7 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
 
         target_net_state_dict = self.target_net.state_dict()
         policy_net_state_dict = self.policy_net.state_dict()
+
         for key in policy_net_state_dict:
             target_net_state_dict[key] = policy_net_state_dict[
                 key

@@ -31,9 +31,9 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.005
+    value: 0.001
   lr:
-    value: 1e-3
+    value: 5e-4
   num_episodes:
     value: 1000
   ######## Models related parameters ########
@@ -52,7 +52,7 @@ parameters:
     value: 50
 #reproducibility
   seed: 
-    value: 2
+    value: 3
     #[2,3,5,7,11]
     #[20202, 30202,40003,50004,60005]
     #69, 20202, 42, 13, 14, 26, 100, 1
