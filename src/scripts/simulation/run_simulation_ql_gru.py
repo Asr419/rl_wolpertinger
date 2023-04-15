@@ -1,8 +1,8 @@
-from scripts.simulation_imports import *
 from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
+from scripts.simulation_imports import *
 
-# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEVICE = "cpu"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
 
@@ -29,7 +29,7 @@ def optimize_model(batch):
     ]  # keep only the last gru output for every batch
 
     # Q(s', a): [batch_size, 1]
-    
+
     cand_qtgt_list = []
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     wandb.init(project="rl_recsys", config=config["parameters"])
 
     ######## User related parameters ########
-    
+
     state_model_cls = config["parameters"]["state_model_cls"]["value"]
     choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
     response_model_cls = config["parameters"]["response_model_cls"]["value"]
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     transition_cls = GruTransition
 
     replay_memory_dataset = ReplayMemoryDataset(
-        capacity=100_000, transition_cls=transition_cls
+        capacity=10_000, transition_cls=transition_cls
     )
     replay_memory_dataloader = DataLoader(
         replay_memory_dataset,
@@ -175,10 +175,16 @@ if __name__ == "__main__":
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
     is_terminal = False
-    keys = ["ep_reward", "ep_avg_reward", "loss","best_rl_avg_diff", "avg_avd_diff","cum_normalized"]
+    keys = [
+        "ep_reward",
+        "ep_avg_reward",
+        "loss",
+        "best_rl_avg_diff",
+        "avg_avd_diff",
+        "cum_normalized",
+    ]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
-   
 
     for i_episode in tqdm(range(NUM_EPISODES)):
         gru_buff = torch.zeros((1, GRU_SEQ_LEN, NUM_ITEM_FEATURES)).to(DEVICE)
@@ -200,19 +206,10 @@ if __name__ == "__main__":
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
 
-        print("NEW EPISODE")
-        cos_sim = torch.nn.functional.cosine_similarity(
-            env.curr_user.get_state(), candidate_docs_repr, dim=1
-        )
-        print(cos_sim.max())
-        print(cos_sim.min())
-        print(cos_sim.mean())
-        print("++++++++")
         max_sess = []
         avg_sess = []
         while not is_terminal:
             with torch.no_grad():
-                
                 ##########################################################################
                 max_sess.append(
                     torch.mm(
@@ -248,8 +245,6 @@ if __name__ == "__main__":
                 slate = bf_agent.get_action(scores, q_val)
 
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
-                
-                
 
                 # fill the GRU buffer
                 gru_buff[
@@ -273,17 +268,17 @@ if __name__ == "__main__":
 
                 reward.append(response)
 
-            # optimize model
-            if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
-                # get a batch of transitions from the replay buffer
-                batch = next(iter(replay_memory_dataloader))
-                for elem in batch:
-                    elem.to(DEVICE)
-                batch_loss = optimize_model(batch)
-                bf_agent.agent.soft_update_target_network()
+        # optimize model
+        if len(replay_memory_dataset.memory) >= 1 * (BATCH_SIZE):
+            # get a batch of transitions from the replay buffer
+            batch = next(iter(replay_memory_dataloader))
+            for elem in batch:
+                elem.to(DEVICE)
+            batch_loss = optimize_model(batch)
+            bf_agent.agent.soft_update_target_network()
 
-                # accumulate loss for each episode
-                loss.append(batch_loss)
+            # accumulate loss for each episode
+            loss.append(batch_loss)
 
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_cum_reward = torch.sum(torch.tensor(reward))
@@ -296,7 +291,7 @@ if __name__ == "__main__":
         ep_avg_avg = torch.mean(torch.tensor(avg_sess))
         ep_avg_cum = torch.sum(torch.tensor(avg_sess))
 
-        cum_normalized = ep_cum_reward/ep_max_cum
+        cum_normalized = ep_cum_reward / ep_max_cum
 
         print(
             "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}: - Cumulative_Normalized: {}".format(
@@ -307,7 +302,7 @@ if __name__ == "__main__":
                 ep_max_cum,
                 ep_avg_avg,
                 ep_avg_cum,
-                cum_normalized
+                cum_normalized,
             )
         )
 
@@ -320,18 +315,17 @@ if __name__ == "__main__":
             "avg_cum": ep_avg_cum,
             "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
             "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
-            "cum_normalized": cum_normalized
+            "cum_normalized": cum_normalized,
         }
 
-        if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
+        if len(replay_memory_dataset.memory) >= 1 * (BATCH_SIZE):
             log_dit["loss"] = loss
-
 
         wandb.log(log_dit, step=i_episode)
 
         save_dict["ep_reward"].append(ep_cum_reward)
         save_dict["ep_avg_reward"].append(ep_avg_reward)
-        save_dict["loss"].append(torch.mean(torch.tensor(loss)))
+        save_dict["loss"].append(loss)
         save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
         save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
         save_dict["cum_normalized"].append(cum_normalized)

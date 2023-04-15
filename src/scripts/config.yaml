@@ -7,7 +7,7 @@ parameters:
   satisfaction_threshold:
     value: 0.5
   state_update_rate:
-    value: 0.96
+    value: 0.95
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -16,7 +16,7 @@ parameters:
     value: DotProductResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 400
+    value: 100
   slate_size:
     value: 5
   num_item_features:
@@ -27,15 +27,15 @@ parameters:
     value: cosine
   ######## Training related parameters ########
   batch_size:
-    value: 32
+    value: 64
   gamma:
     value: 1.0
   tau:
-    value: 0.01
+    value: 0.005
   lr:
-    value: 1e-4
+    value: 1e-3
   num_episodes:
-    value: 300
+    value: 1000
   ######## Models related parameters ########
   model:
     value: SlateQ_Cosine
@@ -46,14 +46,15 @@ parameters:
   intent_kind:
     value: "observable"
   hist_length:
-    value: 2
+    value: 10
 #wolpertinger policy
   nearest_neighbours:
     value: 50
 #reproducibility
   seed: 
-    value: 20202
+    value: 16
     #[20202, 30202,40003,50004,60005]
+    #69, 20202, 42, 13, 14, 26, 100, 1
   working_model:
     value: "TopK_gru"
   
