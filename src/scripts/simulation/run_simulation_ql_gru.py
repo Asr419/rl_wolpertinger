@@ -175,7 +175,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
     is_terminal = False
-    keys = ["ep_reward", "ep_avg_reward", "loss","best_rl_avg_diff", "avg_avd_diff"]
+    keys = ["ep_reward", "ep_avg_reward", "loss","best_rl_avg_diff", "avg_avd_diff","cum_normalized"]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
    
@@ -296,8 +296,10 @@ if __name__ == "__main__":
         ep_avg_avg = torch.mean(torch.tensor(avg_sess))
         ep_avg_cum = torch.sum(torch.tensor(avg_sess))
 
+        cum_normalized = ep_cum_reward/ep_max_cum
+
         print(
-            "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}:".format(
+            "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}: - Cumulative_Normalized: {}".format(
                 loss,
                 ep_avg_reward,
                 ep_cum_reward,
@@ -305,6 +307,7 @@ if __name__ == "__main__":
                 ep_max_cum,
                 ep_avg_avg,
                 ep_avg_cum,
+                cum_normalized
             )
         )
 
@@ -317,6 +320,7 @@ if __name__ == "__main__":
             "avg_cum": ep_avg_cum,
             "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
             "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
+            "cum_normalized": cum_normalized
         }
 
         if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
@@ -330,6 +334,7 @@ if __name__ == "__main__":
         save_dict["loss"].append(torch.mean(torch.tensor(loss)))
         save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
         save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
+        save_dict["cum_normalized"].append(cum_normalized)
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
     directory = "saved_models/hidden_slateq/gru/"
