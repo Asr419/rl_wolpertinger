@@ -6,15 +6,17 @@ DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
 
-def update_belief(selected_doc_feature: torch.Tensor, intent_kind: str):
+def update_belief(belief_state:torch.Tensor,selected_doc_feature: torch.Tensor, intent_kind: str):
     b_u_next = None
     if intent_kind == "random":
         # create a randm tensor between -1 and 1
         b_u_next = torch.randn(14) * 2 - 1
-    if intent_kind == "hidden":
-        b_u_next = bf_agent.update_belief(selected_doc_feature)
+    if intent_kind == "static":
+        b_u_next = belief_state
     if intent_kind == "observable":
         b_u_next = env.curr_user.get_state()
+    if intent_kind=="hidden":
+        b_u_next = bf_agent.update_belief(selected_doc_feature)
     return b_u_next
 
 
@@ -159,7 +161,7 @@ if __name__ == "__main__":
     # defining Belief Agent
     # input features are 2 * NUM_ITEM_FEATURES since we concatenate the state and one item
     agent = DQNAgent(
-        slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
+        slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1,tau=TAU
     )
 
     history_model_cls = class_name_to_class[history_model_cls]
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     transition_cls = Transition
 
     replay_memory_dataset = ReplayMemoryDataset(
-        capacity=100_000, transition_cls=transition_cls
+        capacity=10_000, transition_cls=transition_cls
     )
     replay_memory_dataloader = DataLoader(
         replay_memory_dataset,
@@ -187,7 +189,14 @@ if __name__ == "__main__":
     # Initialize b_u
     b_u = None
 
-    keys = ["ep_reward", "ep_avg_reward", "loss","best_rl_avg_diff", "avg_avd_diff"]
+    keys = [
+        "ep_reward",
+        "ep_avg_reward",
+        "loss",
+        "best_rl_avg_diff",
+        "avg_avd_diff",
+        "cum_normalized",
+    ]
     save_dict = defaultdict(list)
     save_dict.update({key: [] for key in keys})
 
@@ -207,10 +216,12 @@ if __name__ == "__main__":
 
         if INTENT_KIND == "random":
             b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
-        elif INTENT_KIND == "hidden":
+        elif INTENT_KIND == "static":
             b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
         elif INTENT_KIND == "observable":
             b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
+        elif INTENT_KIND=="hidden":
+            b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
         else:
             raise ValueError("invalid intent_kind")
 
@@ -258,7 +269,7 @@ if __name__ == "__main__":
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
                 # print(response)
 
-                b_u_next = update_belief(
+                b_u_next = update_belief(belief_state=b_u,
                     selected_doc_feature=selected_doc_feature,
                     intent_kind=INTENT_KIND,
                 )
@@ -280,16 +291,17 @@ if __name__ == "__main__":
                 reward.append(response)
 
             # optimize model
-            if len(replay_memory_dataset.memory) >= 10 * BATCH_SIZE:
-                # get a batch of transitions from the replay buffer
-                batch = next(iter(replay_memory_dataloader))
-                for elem in batch:
-                    elem.to(DEVICE)
-                batch_loss = optimize_model(batch)
-                bf_agent.agent.soft_update_target_network()
+        if len(replay_memory_dataset.memory) >= 10 * BATCH_SIZE:
+            # get a batch of transitions from the replay buffer
+            
+            batch = next(iter(replay_memory_dataloader))
+            for elem in batch:
+                elem.to(DEVICE)
+            batch_loss = optimize_model(batch)
+            bf_agent.agent.soft_update_target_network()
 
-                # accumulate loss for each episode
-                loss.append(batch_loss)
+            # accumulate loss for each episode
+            loss.append(batch_loss)
 
         ep_avg_reward = torch.mean(torch.tensor(reward))
         ep_cum_reward = torch.sum(torch.tensor(reward))
@@ -302,8 +314,10 @@ if __name__ == "__main__":
         ep_avg_avg = torch.mean(torch.tensor(avg_sess))
         ep_avg_cum = torch.sum(torch.tensor(avg_sess))
 
+        cum_normalized = ep_cum_reward / ep_max_cum
+
         print(
-            "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}:".format(
+            "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}: - Cumulative_Normalized: {}".format(
                 loss,
                 ep_avg_reward,
                 ep_cum_reward,
@@ -311,6 +325,7 @@ if __name__ == "__main__":
                 ep_max_cum,
                 ep_avg_avg,
                 ep_avg_cum,
+                cum_normalized,
             )
         )
 
@@ -323,24 +338,26 @@ if __name__ == "__main__":
             "avg_cum": ep_avg_cum,
             "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
             "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
+            "cum_normalized" :cum_normalized,
         }
 
-        if len(replay_memory_dataset.memory) >= (10 * BATCH_SIZE):
+        if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
             log_dit["loss"] = loss
 
         wandb.log(log_dit, step=i_episode)
 
         save_dict["ep_cum_reward"].append(ep_cum_reward)
         save_dict["ep_avg_reward"].append(ep_avg_reward)
-        save_dict["loss"].append(torch.mean(torch.tensor(loss)))
+        save_dict["loss"].append(loss)
         save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
         save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
+        save_dict["cum_normalized"].append(cum_normalized)
     now = datetime.now()
     folder_name = now.strftime("%m-%d_%H-%M-%S")
     if INTENT_KIND == "random":
         directory = "saved_models/random_slateq/"
-    elif INTENT_KIND == "hidden":
-        directory = "saved_models/hidden_slateq/avghistory/"
+    elif INTENT_KIND == "static":
+        directory = "saved_models/static/"
     elif INTENT_KIND == "observable":
         directory = "saved_models/observed_slateq/"
 
@@ -353,7 +370,7 @@ if __name__ == "__main__":
     shutil.copy(source_path, destination_path)
 
     # Save the model
-    Path = path + "/model.pt"
+    Path = path + f"/model_{SEED}.pt"
     torch.save(bf_agent, Path)
 
     with open(path + "/logs_dict.pickle", "wb") as f:
