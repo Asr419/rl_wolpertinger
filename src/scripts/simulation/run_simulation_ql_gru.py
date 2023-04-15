@@ -195,21 +195,21 @@ if __name__ == "__main__":
         loss = []
         diff_to_best = []
 
+        max_sess = []
+        avg_sess = []
+
         env.reset()
         # Initialize b_u
         b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
         # b_u = (torch.randn(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
 
         is_terminal = False
-        cum_reward = 0
 
         candidate_docs = env.get_candidate_docs()
         candidate_docs_repr = torch.Tensor(
             env.doc_catalogue.get_docs_features(candidate_docs)
         ).to(DEVICE)
 
-        max_sess = []
-        avg_sess = []
         while not is_terminal:
             with torch.no_grad():
                 ##########################################################################

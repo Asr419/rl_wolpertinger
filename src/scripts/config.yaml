@@ -16,7 +16,7 @@ parameters:
     value: DotProductResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 100
+    value: 1000
   slate_size:
     value: 5
   num_item_features:
@@ -31,7 +31,7 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.001
+    value: 0.01
   lr:
     value: 5e-4
   num_episodes:
@@ -44,7 +44,7 @@ parameters:
   slate_gen_model_cls:
     value: TopKSlateGenerator
   intent_kind:
-    value: "hidden"
+    value: "static"
   hist_length:
     value: 10
 #wolpertinger policy

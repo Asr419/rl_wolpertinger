@@ -291,7 +291,7 @@ if __name__ == "__main__":
                 reward.append(response)
 
             # optimize model
-        if len(replay_memory_dataset.memory) >= 10 * BATCH_SIZE:
+        if len(replay_memory_dataset.memory) >= 1 * BATCH_SIZE:
             # get a batch of transitions from the replay buffer
             
             batch = next(iter(replay_memory_dataloader))
