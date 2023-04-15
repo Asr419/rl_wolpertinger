@@ -17,6 +17,7 @@ def optimize_model(batch):
         gru_buffer_batch,  # [batch_size, num_item_features]
     ) = batch
 
+    print(reward_batch)
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     # defining Belief Agent
     # input features are 2 * NUM_ITEM_FEATURES since we concatenate the state and one item
     agent = DQNAgent(
-        slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1
+        slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1, tau=TAU
     )
 
     belief_model = GRUModel(num_doc_features=NUM_ITEM_FEATURES)
@@ -162,7 +163,7 @@ if __name__ == "__main__":
     transition_cls = GruTransition
 
     replay_memory_dataset = ReplayMemoryDataset(
-        capacity=10_000, transition_cls=transition_cls
+        capacity=34, transition_cls=transition_cls
     )
     replay_memory_dataloader = DataLoader(
         replay_memory_dataset,
@@ -247,9 +248,18 @@ if __name__ == "__main__":
                 selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
 
                 # fill the GRU buffer
-                gru_buff[
-                    0, GRU_SEQ_LEN - (count % GRU_SEQ_LEN) - 1, :
-                ] = selected_doc_feature
+                if count % GRU_SEQ_LEN == 0 and count != 0:
+                    # shift the buffer
+                    for i in range(GRU_SEQ_LEN - 1):
+                        gru_buff[0, i, :] = gru_buff[0, i + 1, :]
+                    gru_buff[0, -1, :] = selected_doc_feature
+                else:
+                    gru_buff[0, count % GRU_SEQ_LEN, :] = selected_doc_feature
+                count += 1
+
+                # print(gru_buff)
+                # if count == 3:
+                #     exit(0)
 
                 # push memory
                 replay_memory_dataset.push(
