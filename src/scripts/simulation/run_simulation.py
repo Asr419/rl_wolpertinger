@@ -6,15 +6,15 @@ def update_belief(
     belief_state: torch.Tensor, selected_doc_feature: torch.Tensor, intent_kind: str
 ):
     b_u_next = None
-    if intent_kind == "random":
+    if intent_kind == "random_state":
         # create a randm tensor between -1 and 1
         b_u_next = torch.randn(14) * 2 - 1
     if intent_kind == "static":
         b_u_next = belief_state
     if intent_kind == "observable":
         b_u_next = env.curr_user.get_state()
-    if intent_kind == "hidden":
-        b_u_next = bf_agent.update_belief(selected_doc_feature)
+    if intent_kind == "random_slate":
+        b_u_next = belief_state
     return b_u_next
 
 
@@ -235,13 +235,13 @@ if __name__ == "__main__":
                 env.doc_catalogue.get_docs_features(candidate_docs)
             ).to(DEVICE)
 
-            if INTENT_KIND == "random":
+            if INTENT_KIND == "random_state":
                 b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
             elif INTENT_KIND == "static":
                 b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
             elif INTENT_KIND == "observable":
                 b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
-            elif INTENT_KIND == "hidden":
+            elif INTENT_KIND == "random_slate":
                 b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
             else:
                 raise ValueError("invalid intent_kind")
@@ -285,8 +285,10 @@ if __name__ == "__main__":
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     scores = torch.softmax(scores, dim=0)
                     q_val = q_val.squeeze()
-
-                    slate = bf_agent.get_action(scores, q_val)
+                    if INTENT_KIND == "random_slate":
+                        slate = torch.randint(0, candidate_docs_repr.size(0), size=(SLATE_SIZE,))
+                    else:
+                        slate = bf_agent.get_action(scores, q_val)
                     # print(slate)
 
                     selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
@@ -314,18 +316,20 @@ if __name__ == "__main__":
                     # print(response)
                     reward.append(response)
 
-                # optimize model
-            if len(replay_memory_dataset.memory) >= 1 * BATCH_SIZE:
-                # get a batch of transitions from the replay buffer
+            if INTENT_KIND == "random_slate":
+                pass
+            else:   # optimize model
+                if len(replay_memory_dataset.memory) >= 1 * BATCH_SIZE:
+                    # get a batch of transitions from the replay buffer
 
-                batch = next(iter(replay_memory_dataloader))
-                for elem in batch:
-                    elem.to(DEVICE)
-                batch_loss = optimize_model(batch)
-                bf_agent.agent.soft_update_target_network()
+                    batch = next(iter(replay_memory_dataloader))
+                    for elem in batch:
+                        elem.to(DEVICE)
+                    batch_loss = optimize_model(batch)
+                    bf_agent.agent.soft_update_target_network()
 
-                # accumulate loss for each episode
-                loss.append(batch_loss)
+                    # accumulate loss for each episode
+                    loss.append(batch_loss)
 
             ep_avg_reward = torch.mean(torch.tensor(reward))
             ep_cum_reward = torch.sum(torch.tensor(reward))
@@ -377,15 +381,17 @@ if __name__ == "__main__":
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
-        if INTENT_KIND == "random":
-            directory = "random_slateq"
+        if INTENT_KIND == "random_state":
+            directory = "random_state_slateq"
         elif INTENT_KIND == "static":
             directory = "static"
         elif INTENT_KIND == "observable":
             directory = "observed_slateq"
+        elif INTENT_KIND == "random_slate":
+            directory = "random_slate"
         else:
             raise ValueError(
-                "INTENT_KIND must be in ['random', 'static', 'observable']"
+                "INTENT_KIND must be in ['random_state', 'static', 'observable','random_slate']"
             )
 
         wandb.finish()

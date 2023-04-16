@@ -33,7 +33,7 @@ parameters:
   lr:
     value: 5e-4
   num_episodes:
-    value: 5
+    value: 1000
   device:
     value: "cpu"
   ######## Models related parameters ########
@@ -46,14 +46,14 @@ parameters:
   hist_length:
     value: 10
   intent_kind:
-    value: "observable"
+    value: "random_slate"
   ######## Wolpertinger policy ########
   nearest_neighbours:
     value: 50
   ######## Seed ########
   seeds: 
-    value: [2, 3, 5, 7, 11] #[2,3,5,7,11]
+    value: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29] #[2,3,5,7,11]
   ######## Grouping ########
-  grouping:
-    value: "TopK_hidden"
+  # grouping:
+  #   value: "TopK_hidden"
   
