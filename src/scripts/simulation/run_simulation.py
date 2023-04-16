@@ -99,6 +99,7 @@ if __name__ == "__main__":
         INTENT_KIND = config["parameters"]["intent_kind"]["value"]
         SONG_PER_SESSION = config["parameters"]["song_per_session"]["value"]
 
+        assert INTENT_KIND in ["observable", "static", "random_state", "random_slate"]
         ######## Training related parameters ########
         BATCH_SIZE = config["parameters"]["batch_size"]["value"]
         GAMMA = config["parameters"]["gamma"]["value"]
