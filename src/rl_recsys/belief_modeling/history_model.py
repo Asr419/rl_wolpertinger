@@ -22,10 +22,9 @@ class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
         # todo: maybe here we can have a standradization step
         pass
 
-    @abc.abstractmethod
     def _init_history_vector(self) -> torch.Tensor:
-        """Generate the first history vector."""
-        pass
+        # initialize the history vector with zeros
+        return torch.zeros(self.num_doc_features).unsqueeze(0)
 
 
 class AvgHistoryModel(AbstractHistoryModel):
@@ -34,10 +33,6 @@ class AvgHistoryModel(AbstractHistoryModel):
     def __init__(self, num_doc_features: int, memory_length: int = 10):
         super().__init__(num_doc_features=num_doc_features)
         self.memory_length = memory_length
-
-    def _init_history_vector(self) -> torch.Tensor:
-        # initialize the history vector with zeros
-        return torch.zeros(self.num_doc_features).unsqueeze(0)
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
@@ -55,20 +50,12 @@ class AvgHistoryModel(AbstractHistoryModel):
 class LastObservationModel(AbstractHistoryModel):
     """Modeling session history information."""
 
-    def __init__(self, num_doc_features: int, memory_length: int = 10):
+    def __init__(self, num_doc_features: int, **kwargs):
         super().__init__(num_doc_features=num_doc_features)
-        self.memory_length = memory_length
-
-    def _init_history_vector(self) -> torch.Tensor:
-        # initialize the history vector with zeros
-        return torch.zeros(self.num_doc_features).unsqueeze(0)
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
-
-        std_hist_vec = observation
-
-        return std_hist_vec
+        return observation
 
 
 class GRUModel(AbstractHistoryModel):
@@ -86,10 +73,6 @@ class GRUModel(AbstractHistoryModel):
             num_layers=num_layers,
             batch_first=True,
         )
-
-    def _init_history_vector(self) -> torch.Tensor:
-        # initialize the history vector with zeros
-        return torch.zeros(self.num_doc_features)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out, _ = self.gru(x)

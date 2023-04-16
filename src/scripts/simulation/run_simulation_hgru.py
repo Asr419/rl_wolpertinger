@@ -156,6 +156,7 @@ if __name__ == "__main__":
         slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1, tau=TAU
     )
 
+    history_model = LastObservationModel(num_doc_features=NUM_ITEM_FEATURES)
     belief_model = GRUModel(num_doc_features=NUM_ITEM_FEATURES)
 
     bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)

@@ -79,11 +79,13 @@ class UserSampler:
         state_model_kwargs: dict[str, Any] = {},
         choice_model_kwargs: dict[str, Any] = {},
         response_model_kwargs: dict[str, Any] = {},
+        songs_per_sess: int = 30,
         num_user_features: int = 14,
         device: torch.device = torch.device("cpu"),
     ) -> None:
         self.device = device
 
+        self.songs_per_sess = songs_per_sess
         self.state_model_cls = state_model_cls
         self.choice_model_cls = choice_model_cls
         self.response_model_cls = response_model_cls
@@ -113,6 +115,7 @@ class UserSampler:
             user_state_model=state_model,
             user_choice_model=choice_model,
             user_response_model=response_model,
+            songs_per_sess=self.songs_per_sess,
         ).to(self.device)
 
         return user

@@ -1,12 +1,12 @@
 import argparse
 import configparser
 import os
-from datetime import datetime
-import shutil
 import pickle
+import shutil
 from collections import defaultdict
-import pytorch_lightning as pl
+from datetime import datetime
 
+import pytorch_lightning as pl
 import torch
 import torch.optim as optim
 import yaml
@@ -27,6 +27,8 @@ from rl_recsys.agent_modeling.slate_generator import (
     OptimalSlateGenerator,
     TopKSlateGenerator,
 )
+from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
+from rl_recsys.belief_modeling.belief_model import NNBeliefModel
 from rl_recsys.belief_modeling.history_model import (
     AvgHistoryModel,
     GRUModel,
@@ -39,7 +41,10 @@ from rl_recsys.user_modeling.choice_model import (
     CosineSimilarityChoiceModel,
     DotProductChoiceModel,
 )
-from rl_recsys.user_modeling.features_gen import NormalUserFeaturesGenerator
+from rl_recsys.user_modeling.features_gen import (
+    NormalUserFeaturesGenerator,
+    UniformFeaturesGenerator,
+)
 from rl_recsys.user_modeling.response_model import (
     CosineResponseModel,
     DotProductResponseModel,
@@ -47,8 +52,6 @@ from rl_recsys.user_modeling.response_model import (
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 from rl_recsys.utils import load_spotify_data
-from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
-from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 
 class_name_to_class = {
     "AlphaIntentUserState": AlphaIntentUserState,
@@ -63,4 +66,5 @@ class_name_to_class = {
     "GreedySlateGenerator": GreedySlateGenerator,
     "OptimalSlateGenerator": OptimalSlateGenerator,
     "LastObservationModel": LastObservationModel,
+    "NNBeliefModel": NNBeliefModel,
 }
