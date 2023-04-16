@@ -106,6 +106,7 @@ if __name__ == "__main__":
         TAU = config["parameters"]["tau"]["value"]
         LR = float(config["parameters"]["lr"]["value"])
         NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+        WARMUP_BATCHES = config["parameters"]["warmup_batches"]["value"]
 
         DEVICE = config["parameters"]["device"]["value"]
         DEVICE = torch.device(DEVICE)
@@ -132,17 +133,21 @@ if __name__ == "__main__":
         rec_model = ContentSimilarityRec(item_feature_matrix=item_features)
 
         ################## USER SAMPLER ###################
-        feat_gen = UniformFeaturesGenerator()
+        user_feat_gen = UniformFeaturesGenerator()
+        intent_feat_gen = UniformFeaturesGenerator()
         state_model_cls = class_name_to_class[state_model_cls]
         choice_model_cls = class_name_to_class[choice_model_cls]
         response_model_cls = class_name_to_class[response_model_cls]
 
-        state_model_kwgs = {"state_update_rate": state_update_rate}
+        state_model_kwgs = {
+            "state_update_rate": state_update_rate,
+            "intent_gen": intent_feat_gen,
+        }
         choice_model_kwgs = {}
         response_model_kwgs = {"amp_factor": resp_amp_factor}
 
         user_sampler = UserSampler(
-            feat_gen,
+            user_feat_gen,
             state_model_cls,
             choice_model_cls,
             response_model_cls,
@@ -239,6 +244,7 @@ if __name__ == "__main__":
                 b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
             elif INTENT_KIND == "static":
                 b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+                # print(b_u)
             elif INTENT_KIND == "observable":
                 b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
             elif INTENT_KIND == "random_slate":
@@ -283,13 +289,20 @@ if __name__ == "__main__":
                         user_state=b_u, docs_repr=candidate_docs_repr
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
+                    # apply softmax
                     scores = torch.softmax(scores, dim=0)
+                    # torch.exp(scores, out=scores)
+                    # scores = torch.ones_like(scores)
+
                     q_val = q_val.squeeze()
+                    # print(q_val)
                     if INTENT_KIND == "random_slate":
-                        slate = torch.randint(0, candidate_docs_repr.size(0), size=(SLATE_SIZE,))
+                        slate = torch.randint(
+                            0, candidate_docs_repr.size(0), size=(SLATE_SIZE,)
+                        )
                     else:
                         slate = bf_agent.get_action(scores, q_val)
-                    # print(slate)
+                        # print(slate)
 
                     selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
                     # print(response)
@@ -316,10 +329,9 @@ if __name__ == "__main__":
                     # print(response)
                     reward.append(response)
 
-            if INTENT_KIND == "random_slate":
-                pass
-            else:   # optimize model
-                if len(replay_memory_dataset.memory) >= 1 * BATCH_SIZE:
+            if INTENT_KIND != "random_slate":
+                # optimize model
+                if len(replay_memory_dataset.memory) >= WARMUP_BATCHES * BATCH_SIZE:
                     # get a batch of transitions from the replay buffer
 
                     batch = next(iter(replay_memory_dataloader))
@@ -342,7 +354,10 @@ if __name__ == "__main__":
             ep_avg_avg = torch.mean(torch.tensor(avg_sess))
             ep_avg_cum = torch.sum(torch.tensor(avg_sess))
 
-            cum_normalized = ep_cum_reward / ep_max_cum
+            if ep_max_cum > 0:
+                cum_normalized = ep_cum_reward / ep_max_cum
+            else:
+                cum_normalized = ep_max_cum / ep_cum_reward
 
             print(
                 "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}: - Cumulative_Normalized: {}".format(
@@ -369,7 +384,7 @@ if __name__ == "__main__":
                 "cum_normalized": cum_normalized,
             }
 
-            if len(replay_memory_dataset.memory) >= (1 * BATCH_SIZE):
+            if len(replay_memory_dataset.memory) >= (WARMUP_BATCHES * BATCH_SIZE):
                 log_dit["loss"] = loss
 
             wandb.log(log_dit, step=i_episode)

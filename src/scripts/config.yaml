@@ -29,11 +29,13 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.01
+    value: 0.001
   lr:
-    value: 5e-4
+    value: 1e-4
   num_episodes:
-    value: 1000
+    value: 50
+  warmup_batches:
+    value: 5
   device:
     value: "cpu"
   ######## Models related parameters ########
@@ -46,13 +48,13 @@ parameters:
   hist_length:
     value: 10
   intent_kind:
-    value: "random_slate"
+    value: "observable"
   ######## Wolpertinger policy ########
   nearest_neighbours:
     value: 50
   ######## Seed ########
   seeds: 
-    value: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29] #[2,3,5,7,11]
+    value: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29] 
   ######## Grouping ########
   # grouping:
   #   value: "TopK_hidden"

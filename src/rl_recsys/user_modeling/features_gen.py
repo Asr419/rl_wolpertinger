@@ -40,4 +40,6 @@ class UniformFeaturesGenerator(AbstractFeaturesGenerator):
         self.max_val = max_val
 
     def __call__(self, num_features: int):
-        return np.random.uniform(self.min_val, self.max_val, num_features)
+        return np.random.uniform(self.min_val, self.max_val, num_features).astype(
+            np.float32
+        )
