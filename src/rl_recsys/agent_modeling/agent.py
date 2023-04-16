@@ -34,6 +34,7 @@ class BeliefAgent(
 
     def update_belief(self, *args, **kwargs) -> torch.Tensor:
         """Update the belief state of the agent"""
+
         return self.belief_model(*args, **kwargs)
 
     def get_action(
