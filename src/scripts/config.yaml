@@ -33,9 +33,9 @@ parameters:
   lr:
     value: 5e-4
   num_episodes:
-    value: 1000
+    value: 5
   device:
-    value: "gpu"
+    value: "cpu"
   ######## Models related parameters ########
   history_model_cls:
     value: LastObservationModel
@@ -46,13 +46,13 @@ parameters:
   hist_length:
     value: 10
   intent_kind:
-    value: "hidden"
+    value: "observable"
   ######## Wolpertinger policy ########
   nearest_neighbours:
     value: 50
   ######## Seed ########
   seeds: 
-    value: [2,3,5,7,11]
+    value: [2, 3, 5, 7, 11] #[2,3,5,7,11]
   ######## Grouping ########
   grouping:
     value: "TopK_hidden"

@@ -5,11 +5,13 @@ import pickle
 import shutil
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
 import torch.optim as optim
 import yaml
+from dotenv import load_dotenv
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -68,3 +70,4 @@ class_name_to_class = {
     "LastObservationModel": LastObservationModel,
     "NNBeliefModel": NNBeliefModel,
 }
+load_dotenv()

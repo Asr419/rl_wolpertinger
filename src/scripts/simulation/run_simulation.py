@@ -76,43 +76,51 @@ if __name__ == "__main__":
 
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
-    wandb.init(project="rl_recsys", config=config["parameters"])
 
-    ######## User related parameters ########
-    state_model_cls = config["parameters"]["state_model_cls"]["value"]
-    choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
-    response_model_cls = config["parameters"]["response_model_cls"]["value"]
-    resp_amp_factor = config["parameters"]["resp_amp_factor"]["value"]
-    state_update_rate = config["parameters"]["state_update_rate"]["value"]
+    now = datetime.now()
+    time_now = now.strftime("%m-%d_%H-%M-%S")
 
-    ######## Environment related parameters ########
-    SLATE_SIZE = config["parameters"]["slate_size"]["value"]
-    NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
-    NUM_USERS = config["parameters"]["num_users"]["value"]
-    NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
-    INTENT_KIND = config["parameters"]["intent_kind"]["value"]
-    SONG_PER_SESSION = config["parameters"]["song_per_session"]["value"]
-
-    ######## Training related parameters ########
-    BATCH_SIZE = config["parameters"]["batch_size"]["value"]
-    GAMMA = config["parameters"]["gamma"]["value"]
-    TAU = config["parameters"]["tau"]["value"]
-    LR = float(config["parameters"]["lr"]["value"])
-    NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
     SEEDS = config["parameters"]["seeds"]["value"]
-
-    DEVICE = config["parameters"]["device"]["value"]
-    DEVICE = torch.device(DEVICE)
-    print("DEVICE: ", DEVICE)
-
-    ######## Models related parameters ########
-    history_model_cls = config["parameters"]["history_model_cls"]["value"]
-    belief_model_cls = config["parameters"]["belief_model_cls"]["value"]
-    slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
-    SEQ_LEN = config["parameters"]["hist_length"]["value"]
-
     for seed in SEEDS:
         pl.seed_everything(seed)
+
+        ######## User related parameters ########
+        state_model_cls = config["parameters"]["state_model_cls"]["value"]
+        choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
+        response_model_cls = config["parameters"]["response_model_cls"]["value"]
+        resp_amp_factor = config["parameters"]["resp_amp_factor"]["value"]
+        state_update_rate = config["parameters"]["state_update_rate"]["value"]
+
+        ######## Environment related parameters ########
+        SLATE_SIZE = config["parameters"]["slate_size"]["value"]
+        NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
+        NUM_USERS = config["parameters"]["num_users"]["value"]
+        NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
+        INTENT_KIND = config["parameters"]["intent_kind"]["value"]
+        SONG_PER_SESSION = config["parameters"]["song_per_session"]["value"]
+
+        ######## Training related parameters ########
+        BATCH_SIZE = config["parameters"]["batch_size"]["value"]
+        GAMMA = config["parameters"]["gamma"]["value"]
+        TAU = config["parameters"]["tau"]["value"]
+        LR = float(config["parameters"]["lr"]["value"])
+        NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+
+        DEVICE = config["parameters"]["device"]["value"]
+        DEVICE = torch.device(DEVICE)
+        print("DEVICE: ", DEVICE)
+
+        ######## Models related parameters ########
+        history_model_cls = config["parameters"]["history_model_cls"]["value"]
+        belief_model_cls = config["parameters"]["belief_model_cls"]["value"]
+        slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
+        SEQ_LEN = config["parameters"]["hist_length"]["value"]
+
+        ######## Models related parameters ########
+        SAVE_PATH = Path(os.environ.get("SAVE_PATH"))
+        SAVE_PATH = Path.home() / SAVE_PATH
+        SAVE_PATH.mkdir(parents=True, exist_ok=True)
+
         ##################################################
         #################### CATALOGUE ###################
         data_df = load_spotify_data()
@@ -175,15 +183,9 @@ if __name__ == "__main__":
             hist_length=SEQ_LEN,
         )
 
-        # belief model
-        belief_model_cls = class_name_to_class[belief_model_cls]
-        belief_model = belief_model_cls(
-            history_model=history_model,
-            num_doc_features=NUM_ITEM_FEATURES,
-            memory_length=SEQ_LEN,
+        bf_agent = BeliefAgent(agent=agent, belief_model=history_model).to(
+            device=DEVICE
         )
-
-        bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
         transition_cls = Transition
 
         replay_memory_dataset = ReplayMemoryDataset(
@@ -213,6 +215,10 @@ if __name__ == "__main__":
         ]
         save_dict = defaultdict(list)
         save_dict.update({key: [] for key in keys})
+
+        # init wandb
+        RUN_NAME = f"{INTENT_KIND}_SEED_{seed}_{time_now}"
+        wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
 
         for i_episode in tqdm(range(NUM_EPISODES)):
             reward = []
@@ -370,26 +376,37 @@ if __name__ == "__main__":
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
-        now = datetime.now()
-        folder_name = now.strftime("%m-%d_%H-%M-%S")
         if INTENT_KIND == "random":
-            directory = "saved_models/random_slateq/"
+            directory = "random_slateq"
         elif INTENT_KIND == "static":
-            directory = "saved_models/static/"
+            directory = "static"
         elif INTENT_KIND == "observable":
-            directory = "saved_models/observed_slateq/"
+            directory = "observed_slateq"
+        else:
+            raise ValueError(
+                "INTENT_KIND must be in ['random', 'static', 'observable']"
+            )
+
+        wandb.finish()
+
+        directory = directory + "_" + str(seed)
 
         # Create the directory with the folder name
-        path = directory + folder_name
-        os.makedirs(path)
+        path = Path(directory + "_" + time_now)
+        save_dir = Path(SAVE_PATH / path)
+        save_dir.mkdir(parents=True, exist_ok=True)
 
+        # save config
         source_path = "src/scripts/config.yaml"
-        destination_path = path + "/_config.yaml"
+
+        destination_path = save_dir / Path("config.yaml")
         shutil.copy(source_path, destination_path)
 
         # Save the model
-        Path = path + f"/model_{SEED}.pt"
-        torch.save(bf_agent, Path)
+        model_save_name = f"model.pt"
+        torch.save(bf_agent, save_dir / Path(model_save_name))
 
-        with open(path + "/logs_dict.pickle", "wb") as f:
+        # save logs dict
+        logs_save_name = Path(f"logs_dict.pickle")
+        with open(save_dir / logs_save_name, "wb") as f:
             pickle.dump(save_dict, f)
