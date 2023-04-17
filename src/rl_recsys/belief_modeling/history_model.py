@@ -37,17 +37,17 @@ class LastObservationModel(AbstractHistoryModel):
 class AvgHistoryModel(AbstractHistoryModel):
     """Modeling session history information."""
 
-    def __init__(self, num_doc_features: int, memory_length: int = 10):
+    def __init__(self, num_doc_features: int, hist_length: int = 10):
         super().__init__(num_doc_features=num_doc_features)
-        self.memory_length = memory_length
+        self.hist_length = hist_length
 
     def forward(self, obs_buff: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
         hist_vec = None
         if len(obs_buff.shape) == 3:
-            hist_vec = obs_buff[:, -self.memory_length :, :].mean(dim=1)
+            hist_vec = obs_buff[:, -self.hist_length :, :].mean(dim=1)
         elif len(obs_buff.shape) == 2:
-            hist_vec = obs_buff[-self.memory_length :, :].mean(dim=0)
+            hist_vec = obs_buff[-self.hist_length :, :].mean(dim=0)
         else:
             raise ValueError("obs_buff shape is not correct")
 

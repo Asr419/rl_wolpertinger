@@ -290,11 +290,11 @@ if __name__ == "__main__":
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # apply softmax
-                    scores = torch.softmax(scores, dim=0)
+                    # scores = torch.softmax(scores, dim=0)
                     # torch.exp(scores, out=scores)
                     scores = torch.ones_like(scores)
 
-                    q_val = q_val.squeeze() * 10
+                    q_val = q_val.squeeze()
                     # print(q_val)
                     if INTENT_KIND == "random_slate":
                         slate = torch.randint(

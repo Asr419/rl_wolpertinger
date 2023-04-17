@@ -190,7 +190,7 @@ if __name__ == "__main__":
         transition_cls = GruTransition
 
         replay_memory_dataset = ReplayMemoryDataset(
-            capacity=1_000_000, transition_cls=transition_cls
+            capacity=1000, transition_cls=transition_cls
         )
         replay_memory_dataloader = DataLoader(
             replay_memory_dataset,
@@ -269,6 +269,7 @@ if __name__ == "__main__":
                         .mean()
                     )
                     ##########################################################################
+                    # print(obs_buff)
                     b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
 
                     q_val = bf_agent.agent.compute_q_values(
@@ -300,18 +301,20 @@ if __name__ == "__main__":
                     )
 
                     reward.append(response)
-                    print("------after------")
-                    print(response)
-                    print(response_bu)
-                    print("-------------------")
+                    # print("------after------")
+                    # print(response)
+                    # print(response_bu)
+                    # print("-------------------")
                     # fill the GRU buffer
-                    if count % HIST_LENGTH == 0 and count != 0:
+                    if count >= (HIST_LENGTH - 1):
                         # shift the buffer
                         for i in range(HIST_LENGTH - 1):
                             obs_buff[i, :] = obs_buff[i + 1, :]
                         obs_buff[-1, :] = selected_doc_feature
                     else:
-                        obs_buff[count % HIST_LENGTH, :] = selected_doc_feature
+                        obs_buff[
+                            HIST_LENGTH - (count % HIST_LENGTH) - 1, :
+                        ] = selected_doc_feature
                     count += 1
 
                     # push memory

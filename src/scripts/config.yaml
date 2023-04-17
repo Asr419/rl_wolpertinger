@@ -3,7 +3,7 @@ program: run_simulation.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
-    value: 1.0
+    value: 5.0
   state_update_rate:
     value: 0.95
   state_model_cls:
@@ -29,26 +29,26 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.1
+    value: 0.01
   lr:
     value: 1e-3
   num_episodes:
     value: 1000
   warmup_batches:
-    value: 5
+    value: 10
   device:
-    value: "cuda"
+    value: "cpu"
   ######## Models related parameters ########
   history_model_cls:
-    value: LastObservationModel
+    value: AvgHistoryModel
   belief_model_cls:
     value: NNBeliefModel
   slate_gen_model_cls:
     value: TopKSlateGenerator
   hist_length:
-    value: 1
+    value: 10
   intent_kind:
-    value: "random_slate"
+    value: "observable"
   ######## Wolpertinger policy ########
   nearest_neighbours:
     value: 50
