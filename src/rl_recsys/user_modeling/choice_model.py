@@ -51,7 +51,9 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         # -1 indicates no document is selected
         selected_index = self.no_selection_token
         # if torch.any(self._scores >= satisfaction_threshold):
-        all_probs = torch.softmax(self._scores, dim=0)
+
+        all_probs = self._scores
+        all_probs = torch.softmax(all_probs, dim=0)
         # select the item according to the probability distribution all_probs
         selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
 

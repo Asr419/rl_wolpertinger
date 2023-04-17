@@ -292,9 +292,9 @@ if __name__ == "__main__":
                     # apply softmax
                     scores = torch.softmax(scores, dim=0)
                     # torch.exp(scores, out=scores)
-                    # scores = torch.ones_like(scores)
+                    scores = torch.ones_like(scores)
 
-                    q_val = q_val.squeeze()
+                    q_val = q_val.squeeze() * 10
                     # print(q_val)
                     if INTENT_KIND == "random_slate":
                         slate = torch.randint(

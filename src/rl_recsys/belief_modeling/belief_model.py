@@ -18,11 +18,6 @@ class AbstractBeliefModel(nn.Module, metaclass=abc.ABCMeta):
         self.hist = hist_model
 
     @abc.abstractmethod
-    def _init_prev_state(self, initial_state: torch.Tensor) -> None:
-        # initailize the initial estimated state
-        self.state = initial_state
-
-    @abc.abstractmethod
     def forward(self, history_vec: torch.Tensor) -> torch.Tensor:
         """Outputs the estimated state given the history vector and the previous state
 
@@ -34,6 +29,10 @@ class AbstractBeliefModel(nn.Module, metaclass=abc.ABCMeta):
         """
 
         return self.state
+
+    def init_belief_state(self, initial_state: torch.Tensor) -> None:
+        # initailize the initial estimated state
+        self.state = initial_state
 
 
 class NNBeliefModel(AbstractBeliefModel):
@@ -60,19 +59,25 @@ class NNBeliefModel(AbstractBeliefModel):
         # add last layer
         self.layers.append(nn.Linear(prev_dim, output_size))
 
-    def forward(self, selcted_doc_features: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, belief_state: torch.Tensor, history_vec: torch.Tensor
+    ) -> torch.Tensor:
         """Outputs the estimated state given the history vector and the previous state"""
-        if self.state is None:
-            raise ValueError("Initial state not set")
-        
-        history_vec = self.history_model(selcted_doc_features)
+
+        # note hitsory vec has to be all the information needed for the history model
+        history = self.history_model(history_vec)
 
         # concatenate history and state
-        x = torch.cat((self.state, history_vec), dim=1)
+        if len(belief_state.shape) == 2:
+            # batch
+            inp = torch.cat((belief_state, history), dim=1)
+        else:
+            inp = torch.cat((belief_state, history), dim=0)
+
+        x = inp
         for i, layer in enumerate(self.layers):
             x = layer(x)
             if i != len(self.layers) - 1:
                 x = F.leaky_relu(x)
         # set state
-        self.state = x
-        return self.state
+        return x

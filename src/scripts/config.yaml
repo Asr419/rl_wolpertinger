@@ -29,15 +29,15 @@ parameters:
   gamma:
     value: 1.0
   tau:
-    value: 0.001
+    value: 0.1
   lr:
-    value: 1e-4
+    value: 1e-3
   num_episodes:
-    value: 50
+    value: 1000
   warmup_batches:
     value: 5
   device:
-    value: "cpu"
+    value: "cuda"
   ######## Models related parameters ########
   history_model_cls:
     value: LastObservationModel
@@ -46,9 +46,9 @@ parameters:
   slate_gen_model_cls:
     value: TopKSlateGenerator
   hist_length:
-    value: 10
+    value: 1
   intent_kind:
-    value: "observable"
+    value: "random_slate"
   ######## Wolpertinger policy ########
   nearest_neighbours:
     value: 50

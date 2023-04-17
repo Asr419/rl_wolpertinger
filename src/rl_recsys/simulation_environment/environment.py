@@ -86,7 +86,6 @@ class MusicGym(gym.Env):
     def reset(self) -> None:
         # initialize an episode by setting the user and the candidate documents
         user = self.user_sampler.sample_user()
-        print(user)
         self.curr_user = user
         # initialize user budget
         user.budget = user.init_budget()

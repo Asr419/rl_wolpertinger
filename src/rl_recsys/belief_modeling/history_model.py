@@ -8,23 +8,30 @@ import torch.nn.functional as F
 class AbstractHistoryModel(nn.Module, metaclass=abc.ABCMeta):
     """Modeling session history information."""
 
-    def __init__(self, num_doc_features: int):
+    def __init__(self, num_doc_features: int, **kwargs):
         super().__init__()
         self.num_doc_features = num_doc_features
 
-        # register buffer for history vector
-        self.register_buffer("history_vec", self._init_history_vector())
-        # self.history_vec = self._init_history_vector()
-
     @abc.abstractmethod
-    def forward(self, observation: torch.Tensor) -> torch.Tensor:
+    def forward(self, obs_buff: torch.Tensor) -> torch.Tensor:
         """Given the last observation, return a vector representing history information."""
         # todo: maybe here we can have a standradization step
         pass
 
-    def _init_history_vector(self) -> torch.Tensor:
-        # initialize the history vector with zeros
-        return torch.zeros(self.num_doc_features).unsqueeze(0)
+
+class LastObservationModel(AbstractHistoryModel):
+    """Modeling session history information."""
+
+    def forward(self, obs_buff: torch.Tensor) -> torch.Tensor:
+        """Return last observation."""
+        hist_vec = None
+        if len(obs_buff.shape) == 3:
+            hist_vec = obs_buff[:, -1, :]
+        elif len(obs_buff.shape) == 2:
+            hist_vec = obs_buff[-1, :]
+        else:
+            raise ValueError("obs_buff shape is not correct")
+        return hist_vec  # type: ignore
 
 
 class AvgHistoryModel(AbstractHistoryModel):
@@ -34,28 +41,17 @@ class AvgHistoryModel(AbstractHistoryModel):
         super().__init__(num_doc_features=num_doc_features)
         self.memory_length = memory_length
 
-    def forward(self, observation: torch.Tensor) -> torch.Tensor:
+    def forward(self, obs_buff: torch.Tensor) -> torch.Tensor:
         """Return the standardized avg of features of documents observed."""
-        self.history_vec = torch.cat(
-            (self.history_vec, observation.unsqueeze(0)), dim=0
-        )
-        history_retained = self.history_vec[-self.memory_length :]
-        std_hist_vec = torch.mean(history_retained, dim=0)
+        hist_vec = None
+        if len(obs_buff.shape) == 3:
+            hist_vec = obs_buff[:, -self.memory_length :, :].mean(dim=1)
+        elif len(obs_buff.shape) == 2:
+            hist_vec = obs_buff[-self.memory_length :, :].mean(dim=0)
+        else:
+            raise ValueError("obs_buff shape is not correct")
 
-        # std_hist_vec = observation
-
-        return std_hist_vec
-
-
-class LastObservationModel(AbstractHistoryModel):
-    """Modeling session history information."""
-
-    def __init__(self, num_doc_features: int, **kwargs):
-        super().__init__(num_doc_features=num_doc_features)
-
-    def forward(self, observation: torch.Tensor) -> torch.Tensor:
-        """Return the standardized avg of features of documents observed."""
-        return observation
+        return hist_vec  # type: ignore
 
 
 class GRUModel(AbstractHistoryModel):

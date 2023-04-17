@@ -1,10 +1,6 @@
 from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# DEVICE = "cpu"
-print("DEVICE: ", DEVICE)
-
 
 def optimize_model(batch):
     optimizer.zero_grad()
@@ -24,13 +20,9 @@ def optimize_model(batch):
     )  # type: ignore
 
     # compute s'
-    gru_out = bf_agent.update_belief(gru_buffer_batch)
-    next_state_batch = gru_out[
-        :, -1, :
-    ]  # keep only the last gru output for every batch
+    next_state_batch = bf_agent.update_belief(state_batch, gru_buffer_batch)
 
     # Q(s', a): [batch_size, 1]
-
     cand_qtgt_list = []
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
@@ -71,293 +63,361 @@ if __name__ == "__main__":
 
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
-    wandb.init(project="rl_recsys", config=config["parameters"])
 
-    ######## User related parameters ########
+    now = datetime.now()
+    time_now = now.strftime("%m-%d_%H-%M-%S")
 
-    state_model_cls = config["parameters"]["state_model_cls"]["value"]
-    choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
-    response_model_cls = config["parameters"]["response_model_cls"]["value"]
+    SEEDS = config["parameters"]["seeds"]["value"]
+    for seed in SEEDS:
+        pl.seed_everything(seed)
 
-    satisfaction_threshold = config["parameters"]["satisfaction_threshold"]["value"]
-    resp_amp_factor = config["parameters"]["resp_amp_factor"]["value"]
-    state_update_rate = config["parameters"]["state_update_rate"]["value"]
+        ######## User related parameters ########
+        state_model_cls = config["parameters"]["state_model_cls"]["value"]
+        choice_model_cls = config["parameters"]["choice_model_cls"]["value"]
+        response_model_cls = config["parameters"]["response_model_cls"]["value"]
+        resp_amp_factor = config["parameters"]["resp_amp_factor"]["value"]
+        state_update_rate = config["parameters"]["state_update_rate"]["value"]
 
-    ######## Environment related parameters ########
-    SLATE_SIZE = config["parameters"]["slate_size"]["value"]
-    NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
-    NUM_USERS = config["parameters"]["num_users"]["value"]
-    NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
-    RETRIEVAL_MODEL = config["parameters"]["retrieval_model"]["value"]
-    INTENT_KIND = config["parameters"]["intent_kind"]["value"]
+        ######## Environment related parameters ########
+        SLATE_SIZE = config["parameters"]["slate_size"]["value"]
+        NUM_CANDIDATES = config["parameters"]["num_candidates"]["value"]
+        NUM_USERS = config["parameters"]["num_users"]["value"]
+        NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
+        INTENT_KIND = config["parameters"]["intent_kind"]["value"]
+        SONG_PER_SESSION = config["parameters"]["song_per_session"]["value"]
 
-    ######## Training related parameters ########
-    BATCH_SIZE = config["parameters"]["batch_size"]["value"]
-    GAMMA = config["parameters"]["gamma"]["value"]
-    TAU = config["parameters"]["tau"]["value"]
-    LR = float(config["parameters"]["lr"]["value"])
-    NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
-    SEED = config["parameters"]["seed"]["value"]
-    pl.seed_everything(SEED)
+        assert INTENT_KIND in ["observable", "static", "random_state", "random_slate"]
+        ######## Training related parameters ########
+        BATCH_SIZE = config["parameters"]["batch_size"]["value"]
+        GAMMA = config["parameters"]["gamma"]["value"]
+        TAU = config["parameters"]["tau"]["value"]
+        LR = float(config["parameters"]["lr"]["value"])
+        NUM_EPISODES = config["parameters"]["num_episodes"]["value"]
+        WARMUP_BATCHES = config["parameters"]["warmup_batches"]["value"]
 
-    ######## Models related parameters ########
-    slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
-    GRU_SEQ_LEN = config["parameters"]["hist_length"]["value"]
+        DEVICE = config["parameters"]["device"]["value"]
+        DEVICE = torch.device(DEVICE)
+        print("DEVICE: ", DEVICE)
 
-    ##################################################
-    #################### CATALOGUE ###################
-    data_df = load_spotify_data()
-    doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
+        ######## Models related parameters ########
+        history_model_cls = config["parameters"]["history_model_cls"]["value"]
+        belief_model_cls = config["parameters"]["belief_model_cls"]["value"]
+        slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
+        HIST_LENGTH = config["parameters"]["hist_length"]["value"]
 
-    ################### RETRIEVAL MODEL ###################
-    item_features = doc_catalogue.get_all_item_features()
-    rec_model = ContentSimilarityRec(item_feature_matrix=item_features)
+        ######## Models related parameters ########
+        SAVE_PATH = Path(os.environ.get("SAVE_PATH"))
+        SAVE_PATH = Path.home() / SAVE_PATH
+        SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
-    ################## USER SAMPLER ###################
-    feat_gen = UniformFeaturesGenerator()
-    state_model_cls = class_name_to_class[state_model_cls]
-    choice_model_cls = class_name_to_class[choice_model_cls]
-    response_model_cls = class_name_to_class[response_model_cls]
+        ##################################################
+        #################### CATALOGUE ###################
+        data_df = load_spotify_data()
+        doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
 
-    state_model_kwgs = {"state_update_rate": state_update_rate}
-    choice_model_kwgs = {"satisfaction_threshold": satisfaction_threshold}
-    response_model_kwgs = {"amp_factor": resp_amp_factor}
+        ################### RETRIEVAL MODEL ###################
+        item_features = doc_catalogue.get_all_item_features()
+        rec_model = ContentSimilarityRec(item_feature_matrix=item_features)
 
-    user_sampler = UserSampler(
-        feat_gen,
-        state_model_cls,
-        choice_model_cls,
-        response_model_cls,
-        state_model_kwargs=state_model_kwgs,
-        choice_model_kwargs=choice_model_kwgs,
-        response_model_kwargs=response_model_kwgs,
-        device=DEVICE,
-    )
-    user_sampler.generate_users(num_users=NUM_USERS)
+        ################## USER SAMPLER ###################
+        user_feat_gen = UniformFeaturesGenerator()
+        intent_feat_gen = UniformFeaturesGenerator()
+        state_model_cls = class_name_to_class[state_model_cls]
+        choice_model_cls = class_name_to_class[choice_model_cls]
+        response_model_cls = class_name_to_class[response_model_cls]
 
-    # TODO: dont really now why needed there we shold use the one associated to the user sampled for the episode
-    choice_model = choice_model_cls(satisfaction_threshold=satisfaction_threshold)
+        state_model_kwgs = {
+            "state_update_rate": state_update_rate,
+            "intent_gen": intent_feat_gen,
+        }
+        choice_model_kwgs = {}
+        response_model_kwgs = {"amp_factor": resp_amp_factor}
 
-    env = MusicGym(
-        user_sampler=user_sampler,
-        doc_catalogue=doc_catalogue,
-        rec_model=rec_model,
-        k=NUM_CANDIDATES,
-        device=DEVICE,
-    )
+        user_sampler = UserSampler(
+            user_feat_gen,
+            state_model_cls,
+            choice_model_cls,
+            response_model_cls,
+            state_model_kwargs=state_model_kwgs,
+            choice_model_kwargs=choice_model_kwgs,
+            response_model_kwargs=response_model_kwgs,
+            songs_per_sess=SONG_PER_SESSION,
+            device=DEVICE,
+        )
+        user_sampler.generate_users(num_users=NUM_USERS)
 
-    # define Slate Gen model
-    slate_gen_model_cls = class_name_to_class[slate_gen_model_cls]
-    slate_gen = slate_gen_model_cls(slate_size=SLATE_SIZE)
+        # TODO: dont really now why needed there we shold use the one associated to the user sampled for the episode
+        choice_model = choice_model_cls()
 
-    # defining Belief Agent
-    # input features are 2 * NUM_ITEM_FEATURES since we concatenate the state and one item
-    agent = DQNAgent(
-        slate_gen=slate_gen, input_size=2 * NUM_ITEM_FEATURES, output_size=1, tau=TAU
-    )
-
-    history_model = LastObservationModel(num_doc_features=NUM_ITEM_FEATURES)
-    belief_model = GRUModel(num_doc_features=NUM_ITEM_FEATURES)
-
-    bf_agent = BeliefAgent(agent=agent, belief_model=belief_model).to(device=DEVICE)
-
-    transition_cls = GruTransition
-
-    replay_memory_dataset = ReplayMemoryDataset(
-        capacity=10_000, transition_cls=transition_cls
-    )
-    replay_memory_dataloader = DataLoader(
-        replay_memory_dataset,
-        batch_size=BATCH_SIZE,
-        collate_fn=replay_memory_dataset.collate_fn,
-        # shuffle=False,
-    )
-
-    criterion = torch.nn.SmoothL1Loss()
-    optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
-
-    is_terminal = False
-    keys = [
-        "ep_reward",
-        "ep_avg_reward",
-        "loss",
-        "best_rl_avg_diff",
-        "avg_avd_diff",
-        "cum_normalized",
-    ]
-    save_dict = defaultdict(list)
-    save_dict.update({key: [] for key in keys})
-
-    for i_episode in tqdm(range(NUM_EPISODES)):
-        gru_buff = torch.zeros((1, GRU_SEQ_LEN, NUM_ITEM_FEATURES)).to(DEVICE)
-        count = 0
-
-        reward = []
-        loss = []
-        diff_to_best = []
-
-        max_sess = []
-        avg_sess = []
-
-        env.reset()
-        # Initialize b_u
-        b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-        # b_u = (torch.randn(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
-
-        is_terminal = False
-
-        candidate_docs = env.get_candidate_docs()
-        candidate_docs_repr = torch.Tensor(
-            env.doc_catalogue.get_docs_features(candidate_docs)
-        ).to(DEVICE)
-
-        while not is_terminal:
-            with torch.no_grad():
-                ##########################################################################
-                max_sess.append(
-                    torch.mm(
-                        env.curr_user.get_state().unsqueeze(0),
-                        candidate_docs_repr.t(),
-                    )
-                    .squeeze(0)
-                    .max()
-                )
-
-                avg_sess.append(
-                    torch.mm(
-                        env.curr_user.get_state().unsqueeze(0),
-                        candidate_docs_repr.t(),
-                    )
-                    .squeeze(0)
-                    .mean()
-                )
-                ##########################################################################
-                b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
-
-                q_val = bf_agent.agent.compute_q_values(
-                    state=b_u_rep,
-                    candidate_docs_repr=candidate_docs_repr,
-                    use_policy_net=True,
-                )  # type: ignore
-
-                choice_model.score_documents(
-                    user_state=b_u, docs_repr=candidate_docs_repr
-                )
-                scores = torch.Tensor(choice_model.scores).to(DEVICE)
-                scores = torch.softmax(scores, dim=0)
-                q_val = q_val.squeeze()
-
-                slate = bf_agent.get_action(scores, q_val)
-
-                selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
-
-                # fill the GRU buffer
-                if count % GRU_SEQ_LEN == 0 and count != 0:
-                    # shift the buffer
-                    for i in range(GRU_SEQ_LEN - 1):
-                        gru_buff[0, i, :] = gru_buff[0, i + 1, :]
-                    gru_buff[0, -1, :] = selected_doc_feature
-                else:
-                    gru_buff[0, count % GRU_SEQ_LEN, :] = selected_doc_feature
-                count += 1
-
-                # print(gru_buff)
-                # if count == 3:
-                #     exit(0)
-
-                # push memory
-                replay_memory_dataset.push(
-                    transition_cls(
-                        b_u,
-                        selected_doc_feature,
-                        candidate_docs_repr,
-                        response,
-                        gru_buff.squeeze(),
-                    )
-                )
-
-                # output of the GRU cell, get the last output for the sequence
-                out = bf_agent.update_belief(gru_buff)
-                b_u = out[0, -1, :]
-
-                reward.append(response)
-
-        # optimize model
-        if len(replay_memory_dataset.memory) >= 1 * (BATCH_SIZE):
-            # get a batch of transitions from the replay buffer
-            batch = next(iter(replay_memory_dataloader))
-            for elem in batch:
-                elem.to(DEVICE)
-            batch_loss = optimize_model(batch)
-            bf_agent.agent.soft_update_target_network()
-
-            # accumulate loss for each episode
-            loss.append(batch_loss)
-
-        ep_avg_reward = torch.mean(torch.tensor(reward))
-        ep_cum_reward = torch.sum(torch.tensor(reward))
-
-        loss = torch.mean(torch.tensor(loss))
-
-        ep_max_avg = torch.mean(torch.tensor(max_sess))
-        ep_max_cum = torch.sum(torch.tensor(max_sess))
-
-        ep_avg_avg = torch.mean(torch.tensor(avg_sess))
-        ep_avg_cum = torch.sum(torch.tensor(avg_sess))
-
-        cum_normalized = ep_cum_reward / ep_max_cum
-
-        print(
-            "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}: - Cumulative_Normalized: {}".format(
-                loss,
-                ep_avg_reward,
-                ep_cum_reward,
-                ep_max_avg,
-                ep_max_cum,
-                ep_avg_avg,
-                ep_avg_cum,
-                cum_normalized,
-            )
+        env = MusicGym(
+            user_sampler=user_sampler,
+            doc_catalogue=doc_catalogue,
+            rec_model=rec_model,
+            k=NUM_CANDIDATES,
+            device=DEVICE,
         )
 
-        log_dit = {
-            "avg_reward": ep_avg_reward,
-            "cum_reward": ep_cum_reward,
-            "max_avg": ep_max_avg,
-            "max_cum": ep_max_cum,
-            "avg_avg": ep_avg_avg,
-            "avg_cum": ep_avg_cum,
-            "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
-            "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
-            "cum_normalized": cum_normalized,
-        }
+        # define Slate Gen model
+        slate_gen_model_cls = class_name_to_class[slate_gen_model_cls]
+        slate_gen = slate_gen_model_cls(slate_size=SLATE_SIZE)
 
-        if len(replay_memory_dataset.memory) >= 1 * (BATCH_SIZE):
-            log_dit["loss"] = loss
+        # defining Belief Agent
+        # input features are 2 * NUM_ITEM_FEATURES since we concatenate the state and one item
+        agent = DQNAgent(
+            slate_gen=slate_gen,
+            input_size=2 * NUM_ITEM_FEATURES,
+            output_size=1,
+            tau=TAU,
+        )
 
-        wandb.log(log_dit, step=i_episode)
+        # history model
+        history_model_cls = class_name_to_class[history_model_cls]
+        history_model = history_model_cls(
+            num_doc_features=NUM_ITEM_FEATURES,
+            hist_length=HIST_LENGTH,
+        )
+        # belief model
+        belief_model_cls = class_name_to_class[belief_model_cls]
+        belief_model = belief_model_cls(
+            num_doc_features=NUM_ITEM_FEATURES, hist_model=history_model
+        )
 
-        save_dict["ep_reward"].append(ep_cum_reward)
-        save_dict["ep_avg_reward"].append(ep_avg_reward)
-        save_dict["loss"].append(loss)
-        save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
-        save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
-        save_dict["cum_normalized"].append(cum_normalized)
-    now = datetime.now()
-    folder_name = now.strftime("%m-%d_%H-%M-%S")
-    directory = "saved_models/hidden_slateq/gru/"
+        bf_agent = BeliefAgent(
+            agent=agent,
+            belief_model=belief_model,
+        ).to(device=DEVICE)
 
-    # Create the directory with the folder name
-    path = directory + folder_name
-    os.makedirs(path)
+        transition_cls = GruTransition
 
-    source_path = "src/scripts/config.yaml"
-    destination_path = path + "/_config.yaml"
-    shutil.copy(source_path, destination_path)
+        replay_memory_dataset = ReplayMemoryDataset(
+            capacity=1_000_000, transition_cls=transition_cls
+        )
+        replay_memory_dataloader = DataLoader(
+            replay_memory_dataset,
+            batch_size=BATCH_SIZE,
+            collate_fn=replay_memory_dataset.collate_fn,
+            shuffle=False,
+        )
 
-    # Save the model
-    Path = path + "/model.pt"
-    torch.save(bf_agent, Path)
+        criterion = torch.nn.SmoothL1Loss()
+        optimizer = optim.Adam(bf_agent.parameters(), lr=LR)
 
-    with open(path + "/logs_dict.pickle", "wb") as f:
-        pickle.dump(save_dict, f)
+        is_terminal = False
+        # Initialize b_u
+        b_u = None
+
+        keys = [
+            "ep_reward",
+            "ep_avg_reward",
+            "loss",
+            "best_rl_avg_diff",
+            "avg_avd_diff",
+            "cum_normalized",
+        ]
+        save_dict = defaultdict(list)
+        save_dict.update({key: [] for key in keys})
+
+        # init wandb
+        RUN_NAME = f"{history_model_cls}_SEED_{seed}_{time_now}"
+        wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
+
+        for i_episode in tqdm(range(NUM_EPISODES)):
+            obs_buff = torch.zeros((HIST_LENGTH, NUM_ITEM_FEATURES)).to(DEVICE)
+            count = 0
+
+            reward = []
+            loss = []
+            diff_to_best = []
+
+            env.reset()
+            is_terminal = False
+            cum_reward = 0
+
+            b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+            # b_u = (torch.rand(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
+
+            # print("init b_u")
+            # print(b_u)
+            # print("---------------")
+
+            candidate_docs = env.get_candidate_docs()
+            candidate_docs_repr = torch.Tensor(
+                env.doc_catalogue.get_docs_features(candidate_docs)
+            ).to(DEVICE)
+
+            max_sess = []
+            avg_sess = []
+
+            while not is_terminal:
+                with torch.no_grad():
+                    ##########################################################################
+                    max_sess.append(
+                        torch.mm(
+                            env.curr_user.get_state().unsqueeze(0),
+                            candidate_docs_repr.t(),
+                        )
+                        .squeeze(0)
+                        .max()
+                    )
+
+                    avg_sess.append(
+                        torch.mm(
+                            env.curr_user.get_state().unsqueeze(0),
+                            candidate_docs_repr.t(),
+                        )
+                        .squeeze(0)
+                        .mean()
+                    )
+                    ##########################################################################
+                    b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
+
+                    q_val = bf_agent.agent.compute_q_values(
+                        state=b_u_rep,
+                        candidate_docs_repr=candidate_docs_repr,
+                        use_policy_net=True,
+                    )  # type: ignore
+
+                    # print("------before------")
+                    # print(b_u)
+                    # print("---------------")
+                    choice_model.score_documents(
+                        user_state=b_u, docs_repr=candidate_docs_repr
+                    )
+                    scores = torch.Tensor(choice_model.scores).to(DEVICE)
+                    # scores = torch.exp(scores)
+                    # normalize scores for numerical stability
+                    scores = torch.softmax(scores, dim=0)
+                    # scores = torch.ones_like(scores)
+                    q_val = q_val.squeeze()
+
+                    slate = bf_agent.get_action(scores, q_val)
+                    # print(slate)
+
+                    selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
+
+                    response_bu = env.curr_user.response_model.generate_response(
+                        b_u, selected_doc_feature
+                    )
+
+                    reward.append(response)
+                    print("------after------")
+                    print(response)
+                    print(response_bu)
+                    print("-------------------")
+                    # fill the GRU buffer
+                    if count % HIST_LENGTH == 0 and count != 0:
+                        # shift the buffer
+                        for i in range(HIST_LENGTH - 1):
+                            obs_buff[i, :] = obs_buff[i + 1, :]
+                        obs_buff[-1, :] = selected_doc_feature
+                    else:
+                        obs_buff[count % HIST_LENGTH, :] = selected_doc_feature
+                    count += 1
+
+                    # push memory
+                    replay_memory_dataset.push(
+                        transition_cls(
+                            b_u,
+                            selected_doc_feature,
+                            candidate_docs_repr,
+                            response,
+                            obs_buff,
+                        )
+                    )
+                    b_u = bf_agent.update_belief(b_u, obs_buff)
+                    # b_u = (torch.rand(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
+                    # print("------after------")
+                    # print(b_u)
+                    # print(env.curr_user.features)
+                    # print(env.curr_user.get_state())
+                    # print("------==========-------")
+
+            # optimize model
+            if len(replay_memory_dataset.memory) >= WARMUP_BATCHES * SONG_PER_SESSION:
+                # get a batch of transitions from the replay buffer
+                batch = next(iter(replay_memory_dataloader))
+                for elem in batch:
+                    elem.to(DEVICE)
+                batch_loss = optimize_model(batch)
+                bf_agent.agent.soft_update_target_network()
+
+                # accumulate loss for each episode
+                loss.append(batch_loss)
+
+            ep_avg_reward = torch.mean(torch.tensor(reward))
+            ep_cum_reward = torch.sum(torch.tensor(reward))
+
+            loss = torch.mean(torch.tensor(loss))
+
+            ep_max_avg = torch.mean(torch.tensor(max_sess))
+            ep_max_cum = torch.sum(torch.tensor(max_sess))
+
+            ep_avg_avg = torch.mean(torch.tensor(avg_sess))
+            ep_avg_cum = torch.sum(torch.tensor(avg_sess))
+
+            if ep_max_cum > 0:
+                cum_normalized = ep_cum_reward / ep_max_cum
+            else:
+                cum_normalized = ep_max_cum / ep_cum_reward
+
+            print(
+                "Loss: {}\n Avg_Reward: {} - Cum_Rew: {}\n Max_Avg_Reward: {} - Max_Cum_Rew: {}\n Avg_Avg_Reward: {} - Avg_Cum_Rew: {}: - Cumulative_Normalized: {}".format(
+                    loss,
+                    ep_avg_reward,
+                    ep_cum_reward,
+                    ep_max_avg,
+                    ep_max_cum,
+                    ep_avg_avg,
+                    ep_avg_cum,
+                    cum_normalized,
+                )
+            )
+
+            log_dit = {
+                "avg_reward": ep_avg_reward,
+                "cum_reward": ep_cum_reward,
+                "max_avg": ep_max_avg,
+                "max_cum": ep_max_cum,
+                "avg_avg": ep_avg_avg,
+                "avg_cum": ep_avg_cum,
+                "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
+                "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
+                "cum_normalized": cum_normalized,
+            }
+
+            if len(replay_memory_dataset.memory) >= WARMUP_BATCHES * SONG_PER_SESSION:
+                log_dit["loss"] = loss
+
+            wandb.log(log_dit, step=i_episode)
+
+            save_dict["ep_reward"].append(ep_cum_reward)
+            save_dict["ep_avg_reward"].append(ep_avg_reward)
+            save_dict["loss"].append(loss)
+            save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
+            save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
+            save_dict["cum_normalized"].append(cum_normalized)
+
+        wandb.finish()
+        directory = f"beliefm_{belief_model_cls}_histm_{history_model_cls}"
+
+        directory = directory + "_" + str(seed)
+
+        # Create the directory with the folder name
+        path = Path(directory + "_" + time_now)
+        save_dir = Path(SAVE_PATH / path)
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        # save config
+        source_path = "src/scripts/config.yaml"
+
+        destination_path = save_dir / Path("config.yaml")
+        shutil.copy(source_path, destination_path)
+
+        # Save the model
+        model_save_name = f"model.pt"
+        torch.save(bf_agent, save_dir / Path(model_save_name))
+
+        # save logs dict
+        logs_save_name = Path(f"logs_dict.pickle")
+        with open(save_dir / logs_save_name, "wb") as f:
+            pickle.dump(save_dict, f)
