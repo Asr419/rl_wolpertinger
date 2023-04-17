@@ -40,7 +40,7 @@ class NNBeliefModel(AbstractBeliefModel):
         self,
         num_doc_features: int,
         hist_model: hist_model_type,
-        hidden_dims: list[int] = [14],
+        hidden_dims: list[int] = [],
     ) -> None:
         super(NNBeliefModel, self).__init__(
             num_doc_features=num_doc_features, hist_model=hist_model
@@ -63,7 +63,6 @@ class NNBeliefModel(AbstractBeliefModel):
         self, belief_state: torch.Tensor, history_vec: torch.Tensor
     ) -> torch.Tensor:
         """Outputs the estimated state given the history vector and the previous state"""
-
         # note hitsory vec has to be all the information needed for the history model
         history = self.history_model(history_vec)
 

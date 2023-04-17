@@ -3,7 +3,7 @@ program: run_simulation.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
-    value: 5.0
+    value: 1.0
   state_update_rate:
     value: 0.95
   state_model_cls:
@@ -14,7 +14,7 @@ parameters:
     value: DotProductResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 100
+    value: 2
   song_per_session:
     value: 30
   slate_size:
@@ -25,22 +25,22 @@ parameters:
     value: 1000
   ######## Training related parameters ########
   batch_size:
-    value: 32
+    value: 1
   gamma:
     value: 1.0
   tau:
-    value: 0.01
+    value: 0.001
   lr:
     value: 1e-3
   num_episodes:
     value: 1000
   warmup_batches:
-    value: 10
+    value: 5
   device:
     value: "cpu"
   ######## Models related parameters ########
   history_model_cls:
-    value: AvgHistoryModel
+    value: LastObservationModel
   belief_model_cls:
     value: NNBeliefModel
   slate_gen_model_cls:
@@ -54,7 +54,7 @@ parameters:
     value: 50
   ######## Seed ########
   seeds: 
-    value: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29] 
+    value: [5, 7, 11, 13, 17, 19, 23, 29] 
   ######## Grouping ########
   # grouping:
   #   value: "TopK_hidden"

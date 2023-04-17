@@ -1,3 +1,4 @@
+from rl_recsys.agent_modeling.dqn_agent import BeliefTransition
 from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
@@ -6,7 +7,8 @@ def optimize_model(batch):
     optimizer.zero_grad()
 
     (
-        state_batch,  # [batch_size, num_item_features]
+        prev_state_batch,  # [batch_size, num_item_features]
+        prev_obs_buff_batch,
         selected_doc_feat_batch,  # [batch_size, num_item_features]
         candidates_batch,  # [batch_size, num_candidates, num_item_features]
         reward_batch,  # [batch_size, 1]
@@ -14,6 +16,7 @@ def optimize_model(batch):
     ) = batch
 
     # print(reward_batch)
+    state_batch = bf_agent.update_belief(prev_state_batch, prev_obs_buff_batch)
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
@@ -187,10 +190,10 @@ if __name__ == "__main__":
             belief_model=belief_model,
         ).to(device=DEVICE)
 
-        transition_cls = GruTransition
+        transition_cls = BeliefTransition
 
         replay_memory_dataset = ReplayMemoryDataset(
-            capacity=1000, transition_cls=transition_cls
+            capacity=10000, transition_cls=transition_cls
         )
         replay_memory_dataloader = DataLoader(
             replay_memory_dataset,
@@ -248,6 +251,7 @@ if __name__ == "__main__":
             max_sess = []
             avg_sess = []
 
+            prev_b_u = None
             while not is_terminal:
                 with torch.no_grad():
                     ##########################################################################
@@ -287,7 +291,9 @@ if __name__ == "__main__":
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # scores = torch.exp(scores)
                     # normalize scores for numerical stability
-                    scores = torch.softmax(scores, dim=0)
+                    scores = scores - torch.max(scores)
+                    # scores = torch.softmax(scores, dim=0)
+
                     # scores = torch.ones_like(scores)
                     q_val = q_val.squeeze()
 
@@ -305,6 +311,8 @@ if __name__ == "__main__":
                     # print(response)
                     # print(response_bu)
                     # print("-------------------")
+                    prev_obs_buff = obs_buff.clone()
+
                     # fill the GRU buffer
                     if count >= (HIST_LENGTH - 1):
                         # shift the buffer
@@ -317,16 +325,20 @@ if __name__ == "__main__":
                         ] = selected_doc_feature
                     count += 1
 
-                    # push memory
-                    replay_memory_dataset.push(
-                        transition_cls(
-                            b_u,
-                            selected_doc_feature,
-                            candidate_docs_repr,
-                            response,
-                            obs_buff,
+                    if prev_b_u is not None:
+                        # push memory
+                        replay_memory_dataset.push(
+                            transition_cls(
+                                prev_b_u,
+                                prev_obs_buff,
+                                selected_doc_feature,
+                                candidate_docs_repr,
+                                response,
+                                obs_buff,
+                            )
                         )
-                    )
+
+                    prev_b_u = b_u.clone()
                     b_u = bf_agent.update_belief(b_u, obs_buff)
                     # b_u = (torch.rand(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
                     # print("------after------")

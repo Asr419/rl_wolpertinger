@@ -29,6 +29,16 @@ class GruTransition(NamedTuple):
     gru_buffer: torch.Tensor
 
 
+class BeliefTransition(NamedTuple):
+    # the next state will be computed by the GRU
+    prev_obs_buff: torch.Tensor
+    prev_bu: torch.Tensor
+    selected_doc_feat: torch.Tensor
+    candidate_docs: torch.Tensor
+    reward: torch.Tensor
+    obs_buffer: torch.Tensor
+
+
 class ReplayMemoryDataset(IterableDataset):
     def __init__(self, capacity: int, transition_cls):
         self.capacity = capacity
@@ -106,7 +116,7 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         slate_gen,
         input_size: int,
         output_size: int,
-        hidden_dims: list[int] = [14, 7],
+        hidden_dims: list[int] = [7],
         tau: float = 0.001,
     ) -> None:
         # init super classes
