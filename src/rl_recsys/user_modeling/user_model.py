@@ -129,4 +129,5 @@ class UserSampler:
             len(self.users) > 0
         ), "No users generated yet. call generate_user_batch() first.)"
         i = np.random.randint(0, len(self.users))
+        print(f"sampled user {i}")
         return self.users[i]

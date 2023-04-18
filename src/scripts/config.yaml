@@ -3,9 +3,9 @@ program: run_simulation.py
 parameters:
   ######## User related parameters ########
   resp_amp_factor:
-    value: 1.0
+    value: 1
   state_update_rate:
-    value: 0.95
+    value: 0.99
   state_model_cls:
     value: AlphaIntentUserState
   choice_model_cls:
@@ -14,30 +14,30 @@ parameters:
     value: DotProductResponseModel
   ######## Environment related parameters ########
   num_users:
-    value: 2
+    value: 100
   song_per_session:
     value: 30
   slate_size:
-    value: 5
+    value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 1000
+    value: 100
   ######## Training related parameters ########
   batch_size:
-    value: 1
+    value: 30
   gamma:
-    value: 1.0
+    value: 0.0
   tau:
     value: 0.001
   lr:
-    value: 1e-3
+    value: 1e-4
   num_episodes:
     value: 1000
   warmup_batches:
-    value: 5
+    value: 1
   device:
-    value: "cpu"
+    value: "cuda"
   ######## Models related parameters ########
   history_model_cls:
     value: LastObservationModel
@@ -54,7 +54,7 @@ parameters:
     value: 50
   ######## Seed ########
   seeds: 
-    value: [5, 7, 11, 13, 17, 19, 23, 29] 
+    value: [42] #[11, 13, 17, 19, 23, 29] 
   ######## Grouping ########
   # grouping:
   #   value: "TopK_hidden"

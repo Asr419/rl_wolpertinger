@@ -2,6 +2,8 @@ from rl_recsys.agent_modeling.dqn_agent import BeliefTransition
 from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
+BELIEF_UPDATE_RATE = 0.1
+
 
 def optimize_model(batch):
     optimizer.zero_grad()
@@ -17,6 +19,7 @@ def optimize_model(batch):
 
     # print(reward_batch)
     state_batch = bf_agent.update_belief(prev_state_batch, prev_obs_buff_batch)
+
     # Q(s, a): [batch_size, 1]
     q_val = bf_agent.agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
@@ -45,7 +48,7 @@ def optimize_model(batch):
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
-    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
+    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1) * 10
     loss = criterion(q_val, expected_q_values)
 
     # Optimize the model
@@ -193,7 +196,7 @@ if __name__ == "__main__":
         transition_cls = BeliefTransition
 
         replay_memory_dataset = ReplayMemoryDataset(
-            capacity=10000, transition_cls=transition_cls
+            capacity=100 * SONG_PER_SESSION, transition_cls=transition_cls
         )
         replay_memory_dataloader = DataLoader(
             replay_memory_dataset,
@@ -236,7 +239,14 @@ if __name__ == "__main__":
             is_terminal = False
             cum_reward = 0
 
+            # print("---------------")
+            # print(env.curr_user.features)
+            # print(env.curr_user.get_state())
+            # print(env.curr_user.state_model.user_state)
+            # print("---------------")
+
             b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
+            curr_user_f = torch.Tensor(env.curr_user.features).to(DEVICE)
             # b_u = (torch.rand(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
 
             # print("init b_u")
@@ -255,23 +265,17 @@ if __name__ == "__main__":
             while not is_terminal:
                 with torch.no_grad():
                     ##########################################################################
-                    max_sess.append(
-                        torch.mm(
-                            env.curr_user.get_state().unsqueeze(0),
-                            candidate_docs_repr.t(),
-                        )
-                        .squeeze(0)
-                        .max()
-                    )
+                    rew_cand = torch.mm(
+                        env.curr_user.get_state().unsqueeze(0),
+                        candidate_docs_repr.t(),
+                    ).squeeze(0)
+                    max_rew = rew_cand.max()
+                    min_rew = rew_cand.min()
+                    mean_rew = rew_cand.mean()
+                    std_rew = rew_cand.std()
 
-                    avg_sess.append(
-                        torch.mm(
-                            env.curr_user.get_state().unsqueeze(0),
-                            candidate_docs_repr.t(),
-                        )
-                        .squeeze(0)
-                        .mean()
-                    )
+                    max_sess.append(max_rew)
+                    avg_sess.append(mean_rew)
                     ##########################################################################
                     # print(obs_buff)
                     b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
@@ -286,13 +290,13 @@ if __name__ == "__main__":
                     # print(b_u)
                     # print("---------------")
                     choice_model.score_documents(
-                        user_state=b_u, docs_repr=candidate_docs_repr
+                        user_state=curr_user_f, docs_repr=candidate_docs_repr
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # scores = torch.exp(scores)
                     # normalize scores for numerical stability
-                    scores = scores - torch.max(scores)
-                    # scores = torch.softmax(scores, dim=0)
+                    # scores = scores - torch.max(scores)
+                    scores = torch.softmax(scores, dim=0)
 
                     # scores = torch.ones_like(scores)
                     q_val = q_val.squeeze()
@@ -305,6 +309,12 @@ if __name__ == "__main__":
                     response_bu = env.curr_user.response_model.generate_response(
                         b_u, selected_doc_feature
                     )
+
+                    # z-score normalization
+                    # response = (response - mean_rew) / std_rew
+                    
+                    # min max
+                    response = (response - min_rew) / (max_rew - min_rew)
 
                     reward.append(response)
                     # print("------after------")
@@ -339,7 +349,21 @@ if __name__ == "__main__":
                         )
 
                     prev_b_u = b_u.clone()
+
+                    # if i_episode > 100:
+                    #     b_u = bf_agent.update_belief(b_u, obs_buff)
+                    # else:
+                    #     b_u = prev_b_u
+
+                    # b_u = prev_b_u
+
                     b_u = bf_agent.update_belief(b_u, obs_buff)
+
+                    # b_u_agent = bf_agent.update_belief(b_u, obs_buff)
+                    # b_u = b_u_agent * BELIEF_UPDATE_RATE + b_u * (
+                    #     1 - BELIEF_UPDATE_RATE
+                    # )
+
                     # b_u = (torch.rand(NUM_ITEM_FEATURES) * 2 - 1).to(DEVICE)
                     # print("------after------")
                     # print(b_u)
@@ -348,9 +372,13 @@ if __name__ == "__main__":
                     # print("------==========-------")
 
             # optimize model
-            if len(replay_memory_dataset.memory) >= WARMUP_BATCHES * SONG_PER_SESSION:
+            if (
+                len(replay_memory_dataset.memory) >= WARMUP_BATCHES * SONG_PER_SESSION
+                and i_episode % 1 == 0
+            ):
                 # get a batch of transitions from the replay buffer
                 batch = next(iter(replay_memory_dataloader))
+                # print(batch)
                 for elem in batch:
                     elem.to(DEVICE)
                 batch_loss = optimize_model(batch)

@@ -46,7 +46,7 @@ class AlphaIntentUserState(AbstractUserState):
         # self.alpha = np.random.uniform(self.alpha_min, self.alpha_max, 1).astype(
         #     np.float32
         # )
-        self.alpha = 0.2
+        self.alpha = 0.8
 
         self.intent = self.intent_gen(num_user_features)
 

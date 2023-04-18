@@ -40,7 +40,7 @@ class NNBeliefModel(AbstractBeliefModel):
         self,
         num_doc_features: int,
         hist_model: hist_model_type,
-        hidden_dims: list[int] = [],
+        hidden_dims: list[int] = [14, 14],
     ) -> None:
         super(NNBeliefModel, self).__init__(
             num_doc_features=num_doc_features, hist_model=hist_model
