@@ -39,8 +39,10 @@ def optimize_model(batch):
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
+        candidates = Actor.k_nearest(next_state, candidates)
 
-        next_state_rep = next_state.repeat((candidates.shape[0], 1))
+
+        next_state_rep = next_state.repeat((candidates.shape[0], 1))*10
         cand_qtgt = bf_agent.agent.compute_q_values(
             next_state_rep, candidates, use_policy_net=False
         )  # type: ignore
@@ -117,6 +119,7 @@ if __name__ == "__main__":
         belief_model_cls = config["parameters"]["belief_model_cls"]["value"]
         slate_gen_model_cls = config["parameters"]["slate_gen_model_cls"]["value"]
         SEQ_LEN = config["parameters"]["hist_length"]["value"]
+        NEAREST_NEIGHBOURS = config["parameters"]["nearest_neighbours"]["value"]
 
         ######## Models related parameters ########
         SAVE_PATH = Path(os.environ.get("SAVE_PATH"))
@@ -223,9 +226,9 @@ if __name__ == "__main__":
         save_dict.update({key: [] for key in keys})
 
         # init wandb
-        RUN_NAME = f"{INTENT_KIND}_SEED_{seed}_{time_now}"
+        RUN_NAME = f"Wolpertinger_SEED_{seed}_{time_now}"
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
-
+        Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
         for i_episode in tqdm(range(NUM_EPISODES)):
             reward = []
             loss = []
@@ -257,24 +260,19 @@ if __name__ == "__main__":
             # print(env.curr_user.get_state())
             while not is_terminal:
                 with torch.no_grad():
+                    candidate_docs_repr = Actor.k_nearest(b_u, candidate_docs_repr)
                     ##########################################################################
-                    max_sess.append(
-                        torch.mm(
-                            env.curr_user.get_state().unsqueeze(0),
-                            candidate_docs_repr.t(),
-                        )
-                        .squeeze(0)
-                        .max()
-                    )
+                    rew_cand = torch.mm(
+                        env.curr_user.get_state().unsqueeze(0),
+                        candidate_docs_repr.t(),
+                    ).squeeze(0)
+                    max_rew = rew_cand.max()
+                    min_rew = rew_cand.min()
+                    mean_rew = rew_cand.mean()
+                    std_rew = rew_cand.std()
 
-                    avg_sess.append(
-                        torch.mm(
-                            env.curr_user.get_state().unsqueeze(0),
-                            candidate_docs_repr.t(),
-                        )
-                        .squeeze(0)
-                        .mean()
-                    )
+                    max_sess.append(max_rew)
+                    avg_sess.append(mean_rew)
                     ##########################################################################
 
                     b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
@@ -290,9 +288,9 @@ if __name__ == "__main__":
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # apply softmax
-                    # scores = torch.softmax(scores, dim=0)
+                    scores = torch.softmax(scores, dim=0)
                     # torch.exp(scores, out=scores)
-                    scores = torch.ones_like(scores)
+                    # scores = torch.ones_like(scores)
 
                     q_val = q_val.squeeze()
                     # print(q_val)
@@ -303,10 +301,10 @@ if __name__ == "__main__":
                     else:
                         slate = bf_agent.get_action(scores, q_val)
                         # print(slate)
-
+                    
                     selected_doc_feature, response, is_terminal, _, _ = env.step(slate)
                     # print(response)
-
+                    response = (response - min_rew) / (max_rew - min_rew)
                     b_u_next = update_belief(
                         belief_state=b_u,
                         selected_doc_feature=selected_doc_feature,
@@ -326,12 +324,13 @@ if __name__ == "__main__":
                     # print(b_u)
                     b_u = b_u_next
 
-                    # print(response)
+                    
+                    
                     reward.append(response)
 
             if INTENT_KIND != "random_slate":
                 # optimize model
-                if len(replay_memory_dataset.memory) >= WARMUP_BATCHES * BATCH_SIZE:
+                if (len(replay_memory_dataset.memory) >= WARMUP_BATCHES * BATCH_SIZE and i_episode % 1 == 0):
                     # get a batch of transitions from the replay buffer
 
                     batch = next(iter(replay_memory_dataloader))
@@ -401,7 +400,7 @@ if __name__ == "__main__":
         elif INTENT_KIND == "static":
             directory = "static"
         elif INTENT_KIND == "observable":
-            directory = "observed_slateq"
+            directory = "observed_slateq_wolpertinger"
         elif INTENT_KIND == "random_slate":
             directory = "random_slate"
         else:

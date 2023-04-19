@@ -37,7 +37,7 @@ parameters:
   warmup_batches:
     value: 1
   device:
-    value: "cuda"
+    value: "cpu"
   ######## Models related parameters ########
   history_model_cls:
     value: LastObservationModel
@@ -51,10 +51,10 @@ parameters:
     value: "observable"
   ######## Wolpertinger policy ########
   nearest_neighbours:
-    value: 50
+    value: 20
   ######## Seed ########
   seeds: 
-    value: [42] #[11, 13, 17, 19, 23, 29] 
+    value: [2, 3, 5, 7, 9,11, 13, 17] #[42] #[11, 13, 17, 19, 23, 29] 
   ######## Grouping ########
   # grouping:
   #   value: "TopK_hidden"

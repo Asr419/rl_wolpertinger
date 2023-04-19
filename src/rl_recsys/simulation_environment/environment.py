@@ -51,7 +51,7 @@ class MusicGym(gym.Env):
 
         # ???
         doc_id = slate[selected_doc_idx]
-        # print(doc_id)
+        
 
         # check if user has selected a document
         selected_doc_feature = doc_features[selected_doc_idx, :]
