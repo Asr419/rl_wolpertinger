@@ -18,11 +18,11 @@ parameters:
   song_per_session:
     value: 30
   slate_size:
-    value: 5
+    value: 10
   num_item_features:
     value: 14
   num_candidates:
-    value: 1000
+    value: 10000
   ######## Training related parameters ########
   batch_size:
     value: 30
@@ -33,7 +33,7 @@ parameters:
   lr:
     value: 1e-4
   num_episodes:
-    value: 1000
+    value: 1500
   warmup_batches:
     value: 1
   device:
@@ -51,7 +51,7 @@ parameters:
     value: "observable"
   ######## Wolpertinger policy ########
   nearest_neighbours:
-    value: 100
+    value: 1000
   ######## Seed ########
   seeds: 
     value: [2, 3, 5, 7, 9,11, 13, 17] #[42] #[11, 13, 17, 19, 23, 29] 

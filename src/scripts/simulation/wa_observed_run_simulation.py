@@ -226,7 +226,7 @@ if __name__ == "__main__":
         save_dict.update({key: [] for key in keys})
 
         # init wandb
-        RUN_NAME = f"Wolpertinger_GAMMA_1_SEED_{seed}_{time_now}"
+        RUN_NAME = f"Wolpertinger_{NEAREST_NEIGHBOURS}_GAMMA_1_SEED_{seed}_{time_now}"
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME,settings=wandb.Settings(start_method="fork"))
         Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
         for i_episode in tqdm(range(NUM_EPISODES)):
@@ -402,7 +402,7 @@ if __name__ == "__main__":
         elif INTENT_KIND == "static":
             directory = "static"
         elif INTENT_KIND == "observable":
-            directory = "observed_slateq_wolpertinger"
+            directory = f"observed_slateq_wolpertinger_{NEAREST_NEIGHBOURS}"
         elif INTENT_KIND == "random_slate":
             directory = "random_slate"
         else:
@@ -426,8 +426,10 @@ if __name__ == "__main__":
         shutil.copy(source_path, destination_path)
 
         # Save the model
-        model_save_name = f"model.pt"
+        model_save_name = f"critic.pt"
+        model_save_name = f"actor.pt"
         torch.save(bf_agent, save_dir / Path(model_save_name))
+        torch.save(Actor, save_dir / Path(model_save_name))
 
         # save logs dict
         logs_save_name = Path(f"logs_dict.pickle")
