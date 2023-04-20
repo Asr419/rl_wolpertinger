@@ -41,4 +41,5 @@ class WolpertingerActor(nn.Module):
         indices = torch.argsort(distances, dim=0)[: self.k]
         # Select k closest tensors from tensor list
         candidates_subset = candidate_docs[indices]
-        return candidates_subset
+        
+        return candidates_subset, indices

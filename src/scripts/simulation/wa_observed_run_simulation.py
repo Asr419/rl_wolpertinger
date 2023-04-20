@@ -39,7 +39,7 @@ def optimize_model(batch):
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
-        
+        candidates,_ = Actor.k_nearest(next_state, candidates)
 
 
         next_state_rep = next_state.repeat((candidates.shape[0], 1))*10
@@ -226,8 +226,8 @@ if __name__ == "__main__":
         save_dict.update({key: [] for key in keys})
 
         # init wandb
-        RUN_NAME = f"{INTENT_KIND}_GAMMA_1_SEED_{seed}_{time_now}"
-        wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
+        RUN_NAME = f"Wolpertinger_GAMMA_1_SEED_{seed}_{time_now}"
+        wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME,settings=wandb.Settings(start_method="fork"))
         Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
         for i_episode in tqdm(range(NUM_EPISODES)):
             reward = []
@@ -239,7 +239,6 @@ if __name__ == "__main__":
             cum_reward = 0
 
             candidate_docs = env.get_candidate_docs()
-        
             candidate_docs_repr = torch.Tensor(
                 env.doc_catalogue.get_docs_features(candidate_docs)
             ).to(DEVICE)
@@ -261,6 +260,7 @@ if __name__ == "__main__":
             # print(env.curr_user.get_state())
             while not is_terminal:
                 with torch.no_grad():
+                    
                     ##########################################################################
                     rew_cand = torch.mm(
                         env.curr_user.get_state().unsqueeze(0),
@@ -274,24 +274,26 @@ if __name__ == "__main__":
                     max_sess.append(max_rew)
                     avg_sess.append(mean_rew)
                     ##########################################################################
-
-                    b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
+                    candidate_docs_repr_act, candidates = Actor.k_nearest(b_u, candidate_docs_repr)
+                    candidates=candidate_docs[candidates]
+           
+                    b_u_rep = b_u.repeat((candidate_docs_repr_act.shape[0], 1))
 
                     q_val = bf_agent.agent.compute_q_values(
                         state=b_u_rep,
-                        candidate_docs_repr=candidate_docs_repr,
+                        candidate_docs_repr=candidate_docs_repr_act,
                         use_policy_net=True,
                     )  # type: ignore
 
                     choice_model.score_documents(
-                        user_state=b_u, docs_repr=candidate_docs_repr
+                        user_state=b_u, docs_repr=candidate_docs_repr_act
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # apply softmax
                     scores = torch.softmax(scores, dim=0)
                     # torch.exp(scores, out=scores)
                     # scores = torch.ones_like(scores)
-
+                    
                     q_val = q_val.squeeze()
                     # print(q_val)
                     if INTENT_KIND == "random_slate":
@@ -302,7 +304,7 @@ if __name__ == "__main__":
                         slate = bf_agent.get_action(scores, q_val)
                         # print(slate)
                     
-                    selected_doc_feature, response, is_terminal, _, _ = env.step(slate, candidate_docs=candidate_docs)
+                    selected_doc_feature, response, is_terminal, _, _ = env.step(slate, candidate_docs=candidates)
                     # print(response)
                     response = (response - min_rew) / (max_rew - min_rew)
                     b_u_next = update_belief(
@@ -400,7 +402,7 @@ if __name__ == "__main__":
         elif INTENT_KIND == "static":
             directory = "static"
         elif INTENT_KIND == "observable":
-            directory = "observed_slateq"
+            directory = "observed_slateq_wolpertinger"
         elif INTENT_KIND == "random_slate":
             directory = "random_slate"
         else:

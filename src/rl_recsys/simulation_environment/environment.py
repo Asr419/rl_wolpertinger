@@ -32,12 +32,15 @@ class MusicGym(gym.Env):
         self.curr_user: UserModel
         self.candidate_docs: torch.Tensor
 
-    def step(self, slate: npt.NDArray[np.int_]):
+    def step(self, slate: npt.NDArray[np.int_], candidate_docs):
         # action: is the slate created by the agent
         # observation: is the selected document in the slate
 
         # retrieving fetaures of the slate documents
-        slate_doc_ids = self.candidate_docs[slate]
+        
+        
+        slate_doc_ids = candidate_docs[slate]
+        
         doc_features = torch.Tensor(
             self.doc_catalogue.get_docs_features(slate_doc_ids)
         ).to(device=self.device)
@@ -96,6 +99,7 @@ class MusicGym(gym.Env):
         candidate_docs = self.rec_model.recommend_dot(user.features.to("cpu"), self.k)
         # candidate_docs = self.rec_model.recommend_random(k=self.k)
         self.candidate_docs = torch.Tensor(candidate_docs).to(device=self.device)
+        
         # candidate_docs_repr = torch.Tensor(
         #     self.doc_catalogue.get_docs_features(candidate_docs)
         # )

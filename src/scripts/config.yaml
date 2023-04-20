@@ -18,16 +18,16 @@ parameters:
   song_per_session:
     value: 30
   slate_size:
-    value: 10
+    value: 5
   num_item_features:
     value: 14
   num_candidates:
-    value: 100
+    value: 1000
   ######## Training related parameters ########
   batch_size:
     value: 30
   gamma:
-    value: 0.0
+    value: 1.0
   tau:
     value: 0.001
   lr:
@@ -51,7 +51,7 @@ parameters:
     value: "observable"
   ######## Wolpertinger policy ########
   nearest_neighbours:
-    value: 20
+    value: 100
   ######## Seed ########
   seeds: 
     value: [2, 3, 5, 7, 9,11, 13, 17] #[42] #[11, 13, 17, 19, 23, 29] 
