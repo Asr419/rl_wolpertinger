@@ -23,6 +23,8 @@ parameters:
     value: 14
   num_candidates:
     value: 10000
+  num_user_features:
+    value: 14
   ######## Training related parameters ########
   batch_size:
     value: 30

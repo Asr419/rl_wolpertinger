@@ -39,6 +39,7 @@ class DocCatalogue:
     def get_all_item_features(self) -> npt.NDArray[np.float_]:
         """Get the features of all documents."""
         return self.doc_df.values
+    
 
 
 class SpotifyDocCatalogue(DocCatalogue):
@@ -48,6 +49,23 @@ class SpotifyDocCatalogue(DocCatalogue):
         # create a dictionary of song_id to duration
         self.duration = self.doc_df["duration_ms"].values
 
-    def get_song_duration(song_id: int) -> int:
+    def get_song_duration(self,song_id: int) -> int:
         """Get the duration of a song given its id."""
-        return self.doc_df.loc[doc_id, :].values
+        return self.doc_df.loc[song_id, :].values
+
+
+class TopicDocCatalogue(DocCatalogue):
+    def __init__(self, doc_df: pd.DataFrame, doc_id_column: str) -> None:
+        super().__init__(doc_df, doc_id_column)
+        self.doc_length=self.doc_df["doc_length"].values
+        self.doc_quality=self.doc_df["doc_quality"].values
+    def get_doc_length(self,doc_id:int):
+        return self.doc_df.loc['doc_length'][doc_id]
+    def get_doc_quality(self,doc_id:int):
+        return self.doc_df.loc["doc_quality"][doc_id]
+    
+    def get_topic_features(self) -> npt.NDArray:
+        topic_columns = [col for col in self.doc_df.columns if col.startswith("topic_")]
+        
+        return self.doc_df[topic_columns].values
+

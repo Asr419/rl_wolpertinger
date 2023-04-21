@@ -129,11 +129,11 @@ if __name__ == "__main__":
 
         ##################################################
         #################### CATALOGUE ###################
-        data_df = load_spotify_data()
-        doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
+        data_df = load_topic_data()
+        doc_catalogue = TopicDocCatalogue(doc_df=data_df, doc_id_column="doc_id")
 
         ################### RETRIEVAL MODEL ###################
-        item_features = doc_catalogue.get_all_item_features()
+        item_features = doc_catalogue.get_topic_features()
         rec_model = ContentSimilarityRec(item_feature_matrix=item_features)
 
         ################## USER SAMPLER ###################
