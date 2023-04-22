@@ -62,10 +62,14 @@ class UserModel(nn.Module):
         self.budget -= depreciation
 
     def init_budget(self) -> float:
-        return self.song_per_sess * self.avg_song_duration
+        return self.song_per_sess 
 
     def update_budget_avg(self) -> None:
         self.budget -= self.avg_song_duration
+    def update_topic_avg(self,response)->None:
+        depreciation=4+(9/34)*4*response
+        self.budget-=depreciation
+        
 
 
 class UserSampler:

@@ -66,6 +66,18 @@ class AmplifiedResponseModel(AbstractResponseModel):
 
     def generate_null_response(self) -> float:
         return super().generate_null_response() * self.amp_factor
+    
+    def generate_topic_response(
+        self,
+        estimated_user_state: torch.Tensor,
+        doc_repr: torch.Tensor,
+    ) -> float:
+        
+        doc_item=doc_repr[:20]
+        
+        doc_length = doc_repr[20:21]
+        doc_quality = doc_repr[21:22]
+        return self._generate_response(estimated_user_state, doc_item) * self.amp_factor + (1-self.amp_factor)*doc_quality
 
 
 class CosineResponseModel(AmplifiedResponseModel):

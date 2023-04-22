@@ -25,6 +25,20 @@ class AbstractUserState(nn.Module, metaclass=abc.ABCMeta):
     def update_state(self, selected_doc_feature: torch.Tensor) -> None:
         w = self.state_update_rate
         self.user_state = w * self.user_state + (1 - w) * selected_doc_feature
+    def update_topic_state(self,selected_doc_feature:torch.Tensor)->None:
+        doucment_topic_interest=selected_doc_feature[:20]
+        index = torch.argmax(doucment_topic_interest)
+        y=0.3
+        delta_t = (-y * torch.abs(self.user_state[index]) + y) * -self.user_state[index]
+        I = torch.dot(self.user_state,doucment_topic_interest)
+        p_positive = (I + 1) / 2
+        p_negative = (1 - I) / 2
+        if torch.rand(1) < p_positive:
+            self.user_state[index] += delta_t
+        if torch.rand(1) < p_negative:
+            self.user_state[index] -= delta_t
+        self.user_state = torch.clamp(self.user_state, -1, 1)
+    
 
 
 class AlphaIntentUserState(AbstractUserState):

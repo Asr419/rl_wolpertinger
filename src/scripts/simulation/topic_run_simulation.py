@@ -40,6 +40,8 @@ def optimize_model(batch):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
         
+        candidates=candidates[:,:NUM_ITEM_FEATURES]
+        
 
 
         next_state_rep = next_state.repeat((candidates.shape[0], 1))*10
@@ -228,9 +230,9 @@ if __name__ == "__main__":
         save_dict.update({key: [] for key in keys})
 
         # init wandb
-        RUN_NAME = f"{INTENT_KIND}_GAMMA_1_SEED_{seed}_{time_now}"
+        RUN_NAME = f"{INTENT_KIND}_Topic_GAMMA_{GAMMA}_SEED_{seed}_{time_now}"
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
-        Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
+        # Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
         for i_episode in tqdm(range(NUM_EPISODES)):
             reward = []
             loss = []
@@ -245,6 +247,11 @@ if __name__ == "__main__":
             candidate_docs_repr = torch.Tensor(
                 env.doc_catalogue.get_docs_features(candidate_docs)
             ).to(DEVICE)
+            candidate_docs_repr_item=candidate_docs_repr[:,:NUM_ITEM_FEATURES]
+            
+            candidate_docs_repr_length = candidate_docs_repr[:,NUM_ITEM_FEATURES:NUM_ITEM_FEATURES+1]
+            candidate_docs_repr_quality = candidate_docs_repr[:,NUM_ITEM_FEATURES+1:NUM_ITEM_FEATURES+2]
+            
 
             if INTENT_KIND == "random_state":
                 b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
@@ -253,6 +260,7 @@ if __name__ == "__main__":
                 # print(b_u)
             elif INTENT_KIND == "observable":
                 b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
+               
             elif INTENT_KIND == "random_slate":
                 b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
             else:
@@ -264,10 +272,10 @@ if __name__ == "__main__":
             while not is_terminal:
                 with torch.no_grad():
                     ##########################################################################
-                    rew_cand = torch.mm(
+                    rew_cand = (torch.mm(
                         env.curr_user.get_state().unsqueeze(0),
-                        candidate_docs_repr.t(),
-                    ).squeeze(0)
+                       candidate_docs_repr_item.t(),
+                    )+candidate_docs_repr_quality).squeeze(0)
                     max_rew = rew_cand.max()
                     min_rew = rew_cand.min()
                     mean_rew = rew_cand.mean()
@@ -277,16 +285,16 @@ if __name__ == "__main__":
                     avg_sess.append(mean_rew)
                     ##########################################################################
 
-                    b_u_rep = b_u.repeat((candidate_docs_repr.shape[0], 1))
+                    b_u_rep = b_u.repeat((candidate_docs_repr_item.shape[0], 1))
 
                     q_val = bf_agent.agent.compute_q_values(
                         state=b_u_rep,
-                        candidate_docs_repr=candidate_docs_repr,
+                        candidate_docs_repr=candidate_docs_repr_item,
                         use_policy_net=True,
                     )  # type: ignore
 
                     choice_model.score_documents(
-                        user_state=b_u, docs_repr=candidate_docs_repr
+                        user_state=b_u, docs_repr=candidate_docs_repr_item
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # apply softmax
@@ -305,6 +313,7 @@ if __name__ == "__main__":
                         # print(slate)
                     
                     selected_doc_feature, response, is_terminal, _, _ = env.step(slate, candidate_docs=candidate_docs)
+                    selected_doc_feature=selected_doc_feature[:NUM_ITEM_FEATURES]
                     # print(response)
                     response = (response - min_rew) / (max_rew - min_rew)
                     b_u_next = update_belief(
@@ -398,13 +407,13 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         if INTENT_KIND == "random_state":
-            directory = "random_state_slateq"
+            directory = "random_state_topic_slateq"
         elif INTENT_KIND == "static":
             directory = "static"
         elif INTENT_KIND == "observable":
-            directory = "observed_slateq"
+            directory = "observed_topic_slateq"
         elif INTENT_KIND == "random_slate":
-            directory = "random_slate"
+            directory = "random_topic_slate"
         else:
             raise ValueError(
                 "INTENT_KIND must be in ['random_state', 'static', 'observable','random_slate']"

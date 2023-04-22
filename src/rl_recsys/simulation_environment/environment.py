@@ -44,10 +44,15 @@ class MusicGym(gym.Env):
         doc_features = torch.Tensor(
             self.doc_catalogue.get_docs_features(slate_doc_ids)
         ).to(device=self.device)
+        
+        doc_item=doc_features[:,:20]
+        
+        doc_length = doc_features[:,20:21]
+        doc_quality = doc_features[:,21:22]
 
         # select from the slate on item following the user choice model
         self.curr_user.choice_model.score_documents(
-            self.curr_user.get_state(), doc_features
+            self.curr_user.get_state(), doc_item
         )
 
         selected_doc_idx = self.curr_user.choice_model.choose_document()
@@ -58,7 +63,7 @@ class MusicGym(gym.Env):
 
         # check if user has selected a document
         selected_doc_feature = doc_features[selected_doc_idx, :]
-        response = self.curr_user.response_model.generate_response(
+        response = self.curr_user.response_model.generate_topic_response(
             self.curr_user.get_state(), selected_doc_feature
         )
 
@@ -73,17 +78,18 @@ class MusicGym(gym.Env):
         #         self.curr_user.get_state(), selected_doc_feature
         #     )
         # update user state
-        self.curr_user.state_model.update_state(
+        self.curr_user.state_model.update_topic_state(
             selected_doc_feature=selected_doc_feature
         )
         if selected_doc_idx == self.curr_user.choice_model.no_selection_token:
             print(self.curr_user.get_state())
 
         # self.curr_user.update_budget(response)
-        self.curr_user.update_budget_avg()
+        self.curr_user.update_topic_avg(response)
 
         is_terminal = self.curr_user.is_terminal()
         info = {}
+        
         return selected_doc_feature, response, is_terminal, False, info
 
     def reset(self) -> None:
