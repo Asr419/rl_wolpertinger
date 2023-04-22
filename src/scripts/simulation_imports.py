@@ -32,12 +32,7 @@ from rl_recsys.agent_modeling.slate_generator import (
     TopKSlateGenerator,
 )
 from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
-from rl_recsys.belief_modeling.belief_model import NNBeliefModel
-from rl_recsys.belief_modeling.history_model import (
-    AvgHistoryModel,
-    GRUModel,
-    LastObservationModel,
-)
+
 from rl_recsys.document_modeling.documents_catalogue import DocCatalogue, TopicDocCatalogue
 from rl_recsys.retrieval import ContentSimilarityRec
 from rl_recsys.simulation_environment.environment import MusicGym
@@ -64,13 +59,10 @@ class_name_to_class = {
     "CosineResponseModel": CosineResponseModel,
     "CosineSimilarityChoiceModel": CosineSimilarityChoiceModel,
     "DotProductResponseModel": DotProductResponseModel,
-    "AvgHistoryModel": AvgHistoryModel,
-    "GRUModel": GRUModel,
     "TopKSlateGenerator": TopKSlateGenerator,
     "DiverseSlateGenerator": DiverseSlateGenerator,
     "GreedySlateGenerator": GreedySlateGenerator,
     "OptimalSlateGenerator": OptimalSlateGenerator,
-    "LastObservationModel": LastObservationModel,
-    "NNBeliefModel": NNBeliefModel,
+    
 }
 load_dotenv()

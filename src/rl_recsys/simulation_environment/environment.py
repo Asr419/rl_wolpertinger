@@ -7,7 +7,7 @@ import numpy.typing as npt
 import pandas as pd
 import torch
 
-from rl_recsys.belief_modeling import belief_model
+
 from rl_recsys.user_modeling.user_model import UserModel, UserSampler
 from rl_recsys.user_modeling.user_state import AlphaIntentUserState
 

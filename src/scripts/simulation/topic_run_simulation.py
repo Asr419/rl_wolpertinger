@@ -188,13 +188,13 @@ if __name__ == "__main__":
         )
 
         # history model
-        history_model_cls = class_name_to_class[history_model_cls]
-        history_model = history_model_cls(
-            num_doc_features=NUM_ITEM_FEATURES,
-            hist_length=SEQ_LEN,
-        )
+        # history_model_cls = class_name_to_class[history_model_cls]
+        # history_model = history_model_cls(
+        #     num_doc_features=NUM_ITEM_FEATURES,
+        #     hist_length=SEQ_LEN,
+        # )
 
-        bf_agent = BeliefAgent(agent=agent, belief_model=history_model).to(
+        bf_agent = BeliefAgent(agent=agent).to(
             device=DEVICE
         )
         transition_cls = Transition

@@ -4,7 +4,6 @@ from typing import TypeVar
 import torch
 import torch.nn as nn
 
-from rl_recsys.belief_modeling.belief_model import NNBeliefModel
 
 torch_model = TypeVar("torch_model", bound=torch.nn.Module)
 
@@ -26,11 +25,11 @@ class BeliefAgent(
     nn.Module,
 ):
     # model an abstract agent with a belief state
-    def __init__(self, agent: torch_model, belief_model: torch_model) -> None:
+    def __init__(self, agent: torch_model) -> None:
         nn.Module.__init__(self)
 
         self.agent = agent
-        self.belief_model = belief_model
+        # self.belief_model = belief_model
 
     def update_belief(self, *args, **kwargs) -> torch.Tensor:
         """Update the belief state of the agent"""
