@@ -39,12 +39,10 @@ def optimize_model(batch):
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
-        
-        candidates=candidates[:,:NUM_ITEM_FEATURES]
-        
 
+        candidates = candidates[:, :NUM_ITEM_FEATURES]
 
-        next_state_rep = next_state.repeat((candidates.shape[0], 1))*10
+        next_state_rep = next_state.repeat((candidates.shape[0], 1)) * 10
         cand_qtgt = bf_agent.agent.compute_q_values(
             next_state_rep, candidates, use_policy_net=False
         )  # type: ignore
@@ -67,8 +65,8 @@ def optimize_model(batch):
     optimizer.step()
     return loss
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
@@ -102,7 +100,7 @@ if __name__ == "__main__":
         NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
         INTENT_KIND = config["parameters"]["intent_kind"]["value"]
         SONG_PER_SESSION = config["parameters"]["song_per_session"]["value"]
-        NUM_USER_FEATURES=config["parameters"]["num_user_features"]["value"]
+        NUM_USER_FEATURES = config["parameters"]["num_user_features"]["value"]
 
         assert INTENT_KIND in ["observable", "static", "random_state", "random_slate"]
         ######## Training related parameters ########
@@ -196,9 +194,7 @@ if __name__ == "__main__":
         #     hist_length=SEQ_LEN,
         # )
 
-        bf_agent = BeliefAgent(agent=agent).to(
-            device=DEVICE
-        )
+        bf_agent = BeliefAgent(agent=agent).to(device=DEVICE)
         transition_cls = Transition
 
         replay_memory_dataset = ReplayMemoryDataset(
@@ -243,15 +239,19 @@ if __name__ == "__main__":
             cum_reward = 0
 
             candidate_docs = env.get_candidate_docs()
-        
+
             candidate_docs_repr = torch.Tensor(
                 env.doc_catalogue.get_docs_features(candidate_docs)
             ).to(DEVICE)
-            candidate_docs_repr_item=candidate_docs_repr[:,:NUM_ITEM_FEATURES]
-            
-            candidate_docs_repr_length = candidate_docs_repr[:,NUM_ITEM_FEATURES:NUM_ITEM_FEATURES+1]
-            candidate_docs_repr_quality = candidate_docs_repr[:,NUM_ITEM_FEATURES+1:NUM_ITEM_FEATURES+2]
-            
+
+            candidate_docs_repr_item = candidate_docs_repr[:, :NUM_ITEM_FEATURES]
+
+            candidate_docs_repr_length = candidate_docs_repr[
+                :, NUM_ITEM_FEATURES : NUM_ITEM_FEATURES + 1
+            ]
+            candidate_docs_repr_quality = candidate_docs_repr[
+                :, NUM_ITEM_FEATURES + 1 : NUM_ITEM_FEATURES + 2
+            ]
 
             if INTENT_KIND == "random_state":
                 b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
@@ -260,7 +260,7 @@ if __name__ == "__main__":
                 # print(b_u)
             elif INTENT_KIND == "observable":
                 b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
-               
+
             elif INTENT_KIND == "random_slate":
                 b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
             else:
@@ -272,10 +272,15 @@ if __name__ == "__main__":
             while not is_terminal:
                 with torch.no_grad():
                     ##########################################################################
-                    rew_cand = ((1-resp_amp_factor)*torch.mm(
-                        env.curr_user.get_state().unsqueeze(0),
-                       candidate_docs_repr_item.t(),
-                    )+resp_amp_factor*candidate_docs_repr_quality).squeeze(0)
+                    rew_cand = (
+                        (1 - resp_amp_factor)
+                        * torch.mm(
+                            env.curr_user.get_state().unsqueeze(0),
+                            candidate_docs_repr_item.t(),
+                        )
+                        + resp_amp_factor * candidate_docs_repr_quality
+                    ).squeeze(0)
+
                     max_rew = rew_cand.max()
                     min_rew = rew_cand.min()
                     mean_rew = rew_cand.mean()
@@ -311,9 +316,11 @@ if __name__ == "__main__":
                     else:
                         slate = bf_agent.get_action(scores, q_val)
                         # print(slate)
-                    
-                    selected_doc_feature, response, is_terminal, _, _ = env.step(slate, candidate_docs=candidate_docs)
-                    selected_doc_feature=selected_doc_feature[:NUM_ITEM_FEATURES]
+
+                    selected_doc_feature, response, is_terminal, _, _ = env.step(
+                        slate, candidate_docs=candidate_docs
+                    )
+                    selected_doc_feature = selected_doc_feature[:NUM_ITEM_FEATURES]
                     # print(response)
                     response = (response - min_rew) / (max_rew - min_rew)
                     b_u_next = update_belief(
@@ -335,13 +342,14 @@ if __name__ == "__main__":
                     # print(b_u)
                     b_u = b_u_next
 
-                    
-                    
                     reward.append(response)
 
             if INTENT_KIND != "random_slate":
                 # optimize model
-                if (len(replay_memory_dataset.memory) >= WARMUP_BATCHES * BATCH_SIZE and i_episode % 1 == 0):
+                if (
+                    len(replay_memory_dataset.memory) >= WARMUP_BATCHES * BATCH_SIZE
+                    and i_episode % 1 == 0
+                ):
                     # get a batch of transitions from the replay buffer
 
                     batch = next(iter(replay_memory_dataloader))
