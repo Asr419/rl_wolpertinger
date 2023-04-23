@@ -77,7 +77,7 @@ class AmplifiedResponseModel(AbstractResponseModel):
         
         doc_length = doc_repr[20:21]
         doc_quality = doc_repr[21:22]
-        return self._generate_response(estimated_user_state, doc_item) * self.amp_factor + (1-self.amp_factor)*doc_quality
+        return self._generate_response(estimated_user_state, doc_item) * (1-self.amp_factor) + self.amp_factor*doc_quality
 
 
 class CosineResponseModel(AmplifiedResponseModel):

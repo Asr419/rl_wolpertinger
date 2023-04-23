@@ -272,10 +272,10 @@ if __name__ == "__main__":
             while not is_terminal:
                 with torch.no_grad():
                     ##########################################################################
-                    rew_cand = (torch.mm(
+                    rew_cand = ((1-resp_amp_factor)*torch.mm(
                         env.curr_user.get_state().unsqueeze(0),
                        candidate_docs_repr_item.t(),
-                    )+candidate_docs_repr_quality).squeeze(0)
+                    )+resp_amp_factor*candidate_docs_repr_quality).squeeze(0)
                     max_rew = rew_cand.max()
                     min_rew = rew_cand.min()
                     mean_rew = rew_cand.mean()
