@@ -33,7 +33,10 @@ from rl_recsys.agent_modeling.slate_generator import (
 )
 from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
 
-from rl_recsys.document_modeling.documents_catalogue import DocCatalogue, TopicDocCatalogue
+from rl_recsys.document_modeling.documents_catalogue import (
+    DocCatalogue,
+    TopicDocCatalogue,
+)
 from rl_recsys.retrieval import ContentSimilarityRec
 from rl_recsys.simulation_environment.environment import MusicGym
 from rl_recsys.user_modeling.choice_model import (
@@ -49,11 +52,12 @@ from rl_recsys.user_modeling.response_model import (
     DotProductResponseModel,
 )
 from rl_recsys.user_modeling.user_model import UserSampler
-from rl_recsys.user_modeling.user_state import AlphaIntentUserState
+from rl_recsys.user_modeling.user_state import AlphaIntentUserState, ObservedUserState
 from rl_recsys.utils import load_spotify_data
 from rl_recsys.utils import load_topic_data
 
 class_name_to_class = {
+    "ObservedUserState": ObservedUserState,
     "AlphaIntentUserState": AlphaIntentUserState,
     "DotProductChoiceModel": DotProductChoiceModel,
     "CosineResponseModel": CosineResponseModel,
@@ -63,6 +67,5 @@ class_name_to_class = {
     "DiverseSlateGenerator": DiverseSlateGenerator,
     "GreedySlateGenerator": GreedySlateGenerator,
     "OptimalSlateGenerator": OptimalSlateGenerator,
-    
 }
 load_dotenv()

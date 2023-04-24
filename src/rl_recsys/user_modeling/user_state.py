@@ -34,9 +34,10 @@ class AbstractUserState(nn.Module, metaclass=abc.ABCMeta):
         I = torch.dot(self.user_state, doucment_topic_interest)
         p_positive = (I + 1) / 2
         p_negative = (1 - I) / 2
-        if torch.rand(1) < p_positive:
+        random = torch.rand(1)
+        if random < p_positive:
             self.user_state[index] += delta_t
-        if torch.rand(1) < p_negative:
+        elif random < p_negative:
             self.user_state[index] -= delta_t
         self.user_state = torch.clamp(self.user_state, -1, 1)
 
@@ -71,6 +72,33 @@ class AlphaIntentUserState(AbstractUserState):
 
     def _generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
         user_state = user_features * (1 - self.alpha) + self.intent * self.alpha
+        # print(
+        #     f"alpha:{self.alpha}\nuser_features: {user_features}\n user_intent: {self.intent}\nuser_state: {user_state}\n\n"
+        # )
+        return user_state
+
+    def reset_state(self) -> None:
+        self.user_state = self.user_state_init
+
+
+class ObservedUserState(AbstractUserState):
+    def __init__(
+        self,
+        user_features: torch.Tensor,
+        intent_gen: feature_gen_type,
+        **kwds: Any,
+    ) -> None:
+        super().__init__(**kwds)
+        num_user_features = len(user_features)
+        self.intent_gen = intent_gen
+
+        user_state = self._generate_state(user_features=user_features)
+        self.register_buffer("user_state", user_state)
+        # used to reset the intent to the initial create one at the end of an episode
+        self.register_buffer("user_state_init", user_state)
+
+    def _generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
+        user_state = user_features
         # print(
         #     f"alpha:{self.alpha}\nuser_features: {user_features}\n user_intent: {self.intent}\nuser_state: {user_state}\n\n"
         # )
