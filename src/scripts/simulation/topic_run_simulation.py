@@ -2,22 +2,6 @@ from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
 
-def update_belief(
-    belief_state: torch.Tensor, selected_doc_feature: torch.Tensor, intent_kind: str
-):
-    b_u_next = None
-    if intent_kind == "random_state":
-        # create a randm tensor between -1 and 1
-        b_u_next = torch.randn(14) * 2 - 1
-    if intent_kind == "static":
-        b_u_next = belief_state
-    if intent_kind == "observable":
-        b_u_next = env.curr_user.get_state()
-    if intent_kind == "random_slate":
-        b_u_next = belief_state
-    return b_u_next
-
-
 def optimize_model(batch):
     optimizer.zero_grad()
 
@@ -56,7 +40,9 @@ def optimize_model(batch):
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
-    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
+
+    expected_q_values = q_tgt * GAMMA + reward_batch
+
     # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
 
@@ -253,16 +239,8 @@ if __name__ == "__main__":
                 :, NUM_ITEM_FEATURES + 1 : NUM_ITEM_FEATURES + 2
             ]
 
-            if INTENT_KIND == "random_state":
-                b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
-            elif INTENT_KIND == "static":
-                b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-                # print(b_u)
-            elif INTENT_KIND == "observable":
+            if INTENT_KIND == "observable":
                 b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
-
-            elif INTENT_KIND == "random_slate":
-                b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
             else:
                 raise ValueError("invalid intent_kind")
 
@@ -315,6 +293,7 @@ if __name__ == "__main__":
                         )
                     else:
                         slate = bf_agent.get_action(scores, q_val)
+                        print(slate)
                         # print(slate)
 
                     selected_doc_feature, response, is_terminal, _, _ = env.step(
@@ -323,11 +302,12 @@ if __name__ == "__main__":
                     selected_doc_feature = selected_doc_feature[:NUM_ITEM_FEATURES]
                     # print(response)
                     response = (response - min_rew) / (max_rew - min_rew)
-                    b_u_next = update_belief(
-                        belief_state=b_u,
-                        selected_doc_feature=selected_doc_feature,
-                        intent_kind=INTENT_KIND,
-                    )
+                    b_u_next = env.curr_user.get_state()
+                    # b_u_next = update_belief(
+                    #     belief_state=b_u,
+                    #     selected_doc_feature=selected_doc_feature,
+                    #     intent_kind=INTENT_KIND,
+                    # )
 
                     # push memory
                     replay_memory_dataset.push(
@@ -414,18 +394,11 @@ if __name__ == "__main__":
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
-        if INTENT_KIND == "random_state":
-            directory = "random_state_topic_slateq"
-        elif INTENT_KIND == "static":
-            directory = "static"
-        elif INTENT_KIND == "observable":
+        if INTENT_KIND == "observable":
             directory = "observed_topic_slateq"
-        elif INTENT_KIND == "random_slate":
-            directory = "random_topic_slate"
+
         else:
-            raise ValueError(
-                "INTENT_KIND must be in ['random_state', 'static', 'observable','random_slate']"
-            )
+            raise ValueError("INTENT_KIND must be in ['observable']")
 
         wandb.finish()
 

@@ -42,45 +42,6 @@ class AbstractUserState(nn.Module, metaclass=abc.ABCMeta):
         self.user_state = torch.clamp(self.user_state, -1, 1)
 
 
-class AlphaIntentUserState(AbstractUserState):
-    def __init__(
-        self,
-        user_features: torch.Tensor,
-        intent_gen: feature_gen_type,
-        alpha_min: float = 0.0,
-        alpha_max: float = 1.0,
-        **kwds: Any,
-    ) -> None:
-        super().__init__(**kwds)
-        num_user_features = len(user_features)
-        self.intent_gen = intent_gen
-
-        self.alpha_min = alpha_min
-        self.alpha_max = alpha_max
-
-        # self.alpha = np.random.uniform(self.alpha_min, self.alpha_max, 1).astype(
-        #     np.float32
-        # )
-        self.alpha = 0.8
-
-        self.intent = self.intent_gen(num_user_features)
-
-        user_state = self._generate_state(user_features=user_features)
-        self.register_buffer("user_state", user_state)
-        # used to reset the intent to the initial create one at the end of an episode
-        self.register_buffer("user_state_init", user_state)
-
-    def _generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
-        user_state = user_features * (1 - self.alpha) + self.intent * self.alpha
-        # print(
-        #     f"alpha:{self.alpha}\nuser_features: {user_features}\n user_intent: {self.intent}\nuser_state: {user_state}\n\n"
-        # )
-        return user_state
-
-    def reset_state(self) -> None:
-        self.user_state = self.user_state_init
-
-
 class ObservedUserState(AbstractUserState):
     def __init__(
         self,

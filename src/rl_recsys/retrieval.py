@@ -42,3 +42,9 @@ class ContentSimilarityRec:
         scores = np.dot(user_features, self.item_feature_matrix.T)
         top_k_items = np.argsort(scores)[-k:]
         return np.array(top_k_items.tolist())
+
+    def recommend_all(self, k=100):
+        num_items = self.item_feature_matrix.shape[0]
+        item_ids = np.arange(num_items)
+        top_k_items = item_ids[:k]
+        return np.array(top_k_items.tolist())
