@@ -44,6 +44,10 @@ class SlateGym(gym.Env):
             cdocs_quality = self.cdocs_quality
             cdocs_length = self.cdocs_length
 
+        cdocs_feature = cdocs_feature[slate, :]
+        cdocs_quality = cdocs_quality[slate]
+        cdocs_length = cdocs_length[slate]
+
         # select from the slate on item following the user choice model
         self.curr_user.choice_model.score_documents(
             self.curr_user.get_state(), cdocs_feature
@@ -55,20 +59,23 @@ class SlateGym(gym.Env):
 
         # checnum_candidates if user has selected a document
         selected_doc_feature = cdocs_feature[selected_doc_idx, :]
+        selected_doc_quality = cdocs_quality[selected_doc_idx]
+        selected_doc_length = cdocs_length[selected_doc_idx]
         # TODO: remove generate topic response and fix it in the response model
-        response = self.curr_user.response_model.generate_topic_response(
-            self.curr_user.get_state(), selected_doc_feature
+        response = self.curr_user.response_model.generate_response(
+            self.curr_user.get_state(),
+            selected_doc_feature,
+            doc_quality=selected_doc_quality,
         )
 
         # update user state
-        self.curr_user.state_model.update_topic_state(
+        self.curr_user.state_model.update_state(
             selected_doc_feature=selected_doc_feature
         )
-        if selected_doc_idx == self.curr_user.choice_model.no_selection_token:
-            print(self.curr_user.get_state())
+        # if selected_doc_idx == self.curr_user.choice_model.no_selection_token:
+        #     print(self.curr_user.get_state())
 
-        # self.curr_user.update_budget(response)
-        self.curr_user.update_topic_avg(response)
+        self.curr_user.update_budget(response, int(selected_doc_length.item()))
 
         is_terminal = self.curr_user.is_terminal()
         info = {}

@@ -10,13 +10,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def save_run(seed, agent, save_dict):
+def save_run(seed, agent, save_dict, directory: str):
     save_path = Path(os.environ.get("SAVE_PATH"))  # type: ignore
     save_path = Path.home() / save_path
     save_path.mkdir(parents=True, exist_ok=True)
 
     time_now = datetime.now().strftime("%m-%d_%H-%M-%S")
-    directory = "observed_topic_slateq"
     directory = directory + "_" + str(seed)
 
     # Create the directory with the folder name

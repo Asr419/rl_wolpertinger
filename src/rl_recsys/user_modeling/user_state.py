@@ -36,12 +36,12 @@ class ObservableUserState(AbstractUserState):
         interest_update_rate: float = 0.3,  # y in the paper
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
         self.user_features = user_features
         self.interest_update_rate = interest_update_rate
+        super().__init__(**kwargs)
 
-    def _generate_state(self, user_features: torch.Tensor) -> torch.Tensor:
-        return user_features
+    def _generate_state(self) -> torch.Tensor:
+        return self.user_features
 
     def reset_state(self) -> None:
         self.user_state = self.user_state_init

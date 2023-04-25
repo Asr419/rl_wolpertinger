@@ -75,8 +75,9 @@ if __name__ == "__main__":
         NUM_CANDIDATES = parameters["num_candidates"]
         NUM_USERS = parameters["num_users"]
         NUM_ITEM_FEATURES = parameters["num_item_features"]
-        DOCS_PER_SESSION = parameters["docs_per_session"]
+        SESS_BUDGET = parameters["sess_budget"]
         NUM_USER_FEATURES = parameters["num_user_features"]
+        ALPHA_RESPONSE = parameters["alpha_response"]
 
         ######## Training related parameters ########
         REPLAY_MEMORY_CAPACITY = parameters["replay_memory_capacity"]
@@ -91,10 +92,9 @@ if __name__ == "__main__":
         print("DEVICE: ", DEVICE)
         ######## Models related parameters ########
         slate_gen_model_cls = parameters["slate_gen_model_cls"]
-        SEQ_LEN = parameters["hist_length"]
 
         ######## Init_wandb ########
-        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}_{time_now}"
+        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}"
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
 
         ################################################################
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
         state_model_kwgs = {}
         choice_model_kwgs = {}
-        response_model_kwgs = {"amp_factor": resp_amp_factor}
+        response_model_kwgs = {"amp_factor": resp_amp_factor, "alpha": ALPHA_RESPONSE}
 
         user_sampler = UserSampler(
             user_feat_gen,
@@ -115,7 +115,7 @@ if __name__ == "__main__":
             state_model_kwargs=state_model_kwgs,
             choice_model_kwargs=choice_model_kwgs,
             response_model_kwargs=response_model_kwgs,
-            songs_per_sess=DOCS_PER_SESSION,
+            sess_budget=SESS_BUDGET,
             num_user_features=NUM_USER_FEATURES,
         )
         user_sampler.generate_users(num_users=NUM_USERS)
@@ -170,16 +170,17 @@ if __name__ == "__main__":
 
             max_sess, avg_sess = [], []
             while not is_terminal:
+                # print("user_state: ", user_state)
                 with torch.no_grad():
                     ########################################
                     rewards_candidates = (
-                        (1 - resp_amp_factor)
+                        (1 - ALPHA_RESPONSE)
                         * torch.mm(
                             user_state.unsqueeze(0),
                             cdocs_features.t(),
                         )
-                        + resp_amp_factor * cdocs_quality
-                    ).squeeze(0)
+                        + ALPHA_RESPONSE * cdocs_quality
+                    ).squeeze(0) * resp_amp_factor
 
                     max_rew = rewards_candidates.max()
                     min_rew = rewards_candidates.min()
@@ -206,12 +207,13 @@ if __name__ == "__main__":
 
                     q_val = q_val.squeeze()
                     slate = agent.get_action(scores, q_val)
+                    # print("slate: ", slate)
 
                     selected_doc_feature, response, is_terminal, _, _ = env.step(
                         slate, cdocs_subset_idx=None
                     )
                     # normalize reward between 0 and 1
-                    response = (response - min_rew) / (max_rew - min_rew)
+                    # response = (response - min_rew) / (max_rew - min_rew)
                     reward.append(response)
 
                     next_user_state = env.curr_user.get_state()
@@ -283,4 +285,5 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        save_run(seed=seed, save_dict=save_dict, agent=agent)
+        directory = "observed_topic_slateq"
+        save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

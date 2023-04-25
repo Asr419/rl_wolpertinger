@@ -15,7 +15,8 @@ class AbstractResponseModel(metaclass=abc.ABCMeta):
         self,
         estimated_user_state: torch.Tensor,
         doc_repr: torch.Tensor,
-    ) -> float:
+        **kwargs,
+    ) -> torch.Tensor:
         """
         Generate the user response (reward) to a slate,
         is a function of the user state and the chosen document in the slate.
@@ -34,42 +35,49 @@ class AbstractResponseModel(metaclass=abc.ABCMeta):
 
 
 class AmplifiedResponseModel(AbstractResponseModel):
-    def __init__(self, amp_factor: int = 10, **kwds: Any) -> None:
+    def __init__(self, amp_factor: int = 1, **kwds: Any) -> None:
         super().__init__(**kwds)
         self.amp_factor = amp_factor
 
     @abc.abstractmethod
     def _generate_response(
         self,
-        estimated_user_state: npt.NDArray[np.float64],
-        doc_repr: npt.NDArray[np.float64],
-    ) -> float:
+        estimated_user_state: torch.Tensor,
+        doc_repr: torch.Tensor,
+        **kwargs,
+    ) -> torch.Tensor:
         pass
 
     def generate_response(
         self,
         estimated_user_state: torch.Tensor,
         doc_repr: torch.Tensor,
-    ) -> float:
-        return self._generate_response(estimated_user_state, doc_repr) * self.amp_factor
+        **kwargs,
+    ) -> torch.Tensor:
+        return (
+            self._generate_response(estimated_user_state, doc_repr, **kwargs)
+            * self.amp_factor
+        )
 
     def generate_null_response(self) -> float:
         return super().generate_null_response() * self.amp_factor
 
-    def generate_topic_response(
+
+class WeightedDotProductResponseModel(AmplifiedResponseModel):
+    def __init__(self, amp_factor: int = 1, alpha: float = 1.0, **kwds: Any) -> None:
+        super().__init__(amp_factor, **kwds)
+        self.alpha = alpha
+
+    def _generate_response(
         self,
         estimated_user_state: torch.Tensor,
         doc_repr: torch.Tensor,
-    ) -> float:
-        doc_item = doc_repr[:20]
-
-        doc_length = doc_repr[20:21]
-        doc_quality = doc_repr[21:22]
-        return (
-            self._generate_response(estimated_user_state, doc_item)
-            * (1 - self.amp_factor)
-            + self.amp_factor * doc_quality
-        )
+        doc_quality: torch.Tensor,
+        **kwargs,
+    ) -> torch.Tensor:
+        satisfaction = torch.dot(estimated_user_state, doc_repr)
+        response = (1 - self.alpha) * satisfaction + self.alpha * doc_quality
+        return response
 
 
 class CosineResponseModel(AmplifiedResponseModel):
@@ -77,7 +85,7 @@ class CosineResponseModel(AmplifiedResponseModel):
         self,
         estimated_user_state: torch.Tensor,
         doc_repr: torch.Tensor,
-    ) -> float:
+    ) -> torch.Tensor:
         satisfaction = torch.nn.functional.cosine_similarity(
             estimated_user_state, doc_repr, dim=0
         )
@@ -89,6 +97,6 @@ class DotProductResponseModel(AmplifiedResponseModel):
         self,
         estimated_user_state: torch.Tensor,
         doc_repr: torch.Tensor,
-    ) -> float:
+    ) -> torch.Tensor:
         satisfaction = torch.dot(estimated_user_state, doc_repr)
         return satisfaction

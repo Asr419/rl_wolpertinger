@@ -28,8 +28,7 @@ class UserModel(nn.Module):
         user_state_model: user_state_model_type,
         user_choice_model: user_choice_model_type,
         user_response_model: user_response_model_type,
-        songs_per_sess: int = 30,
-        avg_song_duration: float = 207467.0,
+        sess_budget: int = 30,
     ) -> None:
         super().__init__()
 
@@ -37,9 +36,7 @@ class UserModel(nn.Module):
         self.choice_model = user_choice_model
         self.response_model = user_response_model
         self.register_buffer("_features", user_features)
-
-        self.song_per_sess = songs_per_sess
-        self.avg_song_duration = avg_song_duration
+        self.sess_budget = sess_budget
 
         # initialized by init budget
         self.budget = self.init_budget()
@@ -54,22 +51,13 @@ class UserModel(nn.Module):
     def is_terminal(self) -> bool:
         return self.budget <= 0
 
-    def update_budget(self, response: float) -> None:
-        if response < 4.0:
-            depreciation = self.avg_song_duration * 2.5
-        else:
-            depreciation = self.avg_song_duration * 0.5
-        self.budget -= depreciation
-
     def init_budget(self) -> float:
-        return self.song_per_sess 
+        return self.sess_budget
 
-    def update_budget_avg(self) -> None:
-        self.budget -= self.avg_song_duration
-    def update_topic_avg(self,response)->None:
-        depreciation=4+(9/34)*4*response
-        self.budget-=depreciation
-        
+    def update_budget(self, response: torch.Tensor, doc_length: int) -> None:
+        _response = response.item()
+        depreciation = doc_length + (9 / 34) * doc_length * _response
+        self.budget -= depreciation
 
 
 class UserSampler:
@@ -83,13 +71,13 @@ class UserSampler:
         state_model_kwargs: dict[str, Any] = {},
         choice_model_kwargs: dict[str, Any] = {},
         response_model_kwargs: dict[str, Any] = {},
-        songs_per_sess: int = 30,
+        sess_budget: int = 30,
         num_user_features: int = 14,
         device: torch.device = torch.device("cpu"),
     ) -> None:
         self.device = device
 
-        self.songs_per_sess = songs_per_sess
+        self.sess_budget = sess_budget
         self.state_model_cls = state_model_cls
         self.choice_model_cls = choice_model_cls
         self.response_model_cls = response_model_cls
@@ -119,7 +107,7 @@ class UserSampler:
             user_state_model=state_model,
             user_choice_model=choice_model,
             user_response_model=response_model,
-            songs_per_sess=self.songs_per_sess,
+            sess_budget=self.sess_budget,
         ).to(self.device)
 
         return user
