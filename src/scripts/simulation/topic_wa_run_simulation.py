@@ -2,22 +2,6 @@ from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
 
-def update_belief(
-    belief_state: torch.Tensor, selected_doc_feature: torch.Tensor, intent_kind: str
-):
-    b_u_next = None
-    if intent_kind == "random_state":
-        # create a randm tensor between -1 and 1
-        b_u_next = torch.randn(14) * 2 - 1
-    if intent_kind == "static":
-        b_u_next = belief_state
-    if intent_kind == "observable":
-        b_u_next = env.curr_user.get_state()
-    if intent_kind == "random_slate":
-        b_u_next = belief_state
-    return b_u_next
-
-
 def optimize_model(batch):
     optimizer.zero_grad()
 
@@ -41,6 +25,8 @@ def optimize_model(batch):
         candidates = candidates_batch[b, :, :]
         candidates, _ = Actor.k_nearest(next_state, candidates)
 
+        candidates = candidates[:, :NUM_ITEM_FEATURES]
+
         next_state_rep = next_state.repeat((candidates.shape[0], 1))
         cand_qtgt = bf_agent.agent.compute_q_values(
             next_state_rep, candidates, use_policy_net=False
@@ -55,7 +41,9 @@ def optimize_model(batch):
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
-    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
+
+    expected_q_values = q_tgt * GAMMA + reward_batch
+
     # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
 
@@ -99,6 +87,7 @@ if __name__ == "__main__":
         NUM_ITEM_FEATURES = config["parameters"]["num_item_features"]["value"]
         INTENT_KIND = config["parameters"]["intent_kind"]["value"]
         SONG_PER_SESSION = config["parameters"]["song_per_session"]["value"]
+        NUM_USER_FEATURES = config["parameters"]["num_user_features"]["value"]
 
         assert INTENT_KIND in ["observable", "static", "random_state", "random_slate"]
         ######## Training related parameters ########
@@ -127,11 +116,11 @@ if __name__ == "__main__":
 
         ##################################################
         #################### CATALOGUE ###################
-        data_df = load_spotify_data()
-        doc_catalogue = DocCatalogue(doc_df=data_df, doc_id_column="song_id")
+        data_df = load_topic_data()
+        doc_catalogue = TopicDocCatalogue(doc_df=data_df, doc_id_column="doc_id")
 
         ################### RETRIEVAL MODEL ###################
-        item_features = doc_catalogue.get_all_item_features()
+        item_features = doc_catalogue.get_topic_features()
         rec_model = ContentSimilarityRec(item_feature_matrix=item_features)
 
         ################## USER SAMPLER ###################
@@ -157,6 +146,7 @@ if __name__ == "__main__":
             choice_model_kwargs=choice_model_kwgs,
             response_model_kwargs=response_model_kwgs,
             songs_per_sess=SONG_PER_SESSION,
+            num_user_features=NUM_USER_FEATURES,
         )
         user_sampler.generate_users(num_users=NUM_USERS)
 
@@ -185,15 +175,13 @@ if __name__ == "__main__":
         )
 
         # history model
-        history_model_cls = class_name_to_class[history_model_cls]
-        history_model = history_model_cls(
-            num_doc_features=NUM_ITEM_FEATURES,
-            hist_length=SEQ_LEN,
-        )
+        # history_model_cls = class_name_to_class[history_model_cls]
+        # history_model = history_model_cls(
+        #     num_doc_features=NUM_ITEM_FEATURES,
+        #     hist_length=SEQ_LEN,
+        # )
 
-        bf_agent = BeliefAgent(agent=agent, belief_model=history_model).to(
-            device=DEVICE
-        )
+        bf_agent = BeliefAgent(agent=agent).to(device=DEVICE)
         transition_cls = Transition
 
         replay_memory_dataset = ReplayMemoryDataset(
@@ -225,13 +213,8 @@ if __name__ == "__main__":
         save_dict.update({key: [] for key in keys})
 
         # init wandb
-        RUN_NAME = f"Wolpertinger_{NEAREST_NEIGHBOURS}_GAMMA_1_SEED_{seed}_{time_now}"
-        wandb.init(
-            project="rl_recsys",
-            config=config["parameters"],
-            name=RUN_NAME,
-            settings=wandb.Settings(start_method="fork"),
-        )
+        RUN_NAME = f"WA_{INTENT_KIND}_Topic_GAMMA_{GAMMA}_SEED_{seed}_{time_now}"
+        wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
         Actor = WolpertingerActor(nn_dim=[14, 14], k=NEAREST_NEIGHBOURS)
         for i_episode in tqdm(range(NUM_EPISODES)):
             reward = []
@@ -243,19 +226,22 @@ if __name__ == "__main__":
             cum_reward = 0
 
             candidate_docs = env.get_candidate_docs()
+
             candidate_docs_repr = torch.Tensor(
                 env.doc_catalogue.get_docs_features(candidate_docs)
             ).to(DEVICE)
 
-            if INTENT_KIND == "random_state":
-                b_u = (torch.randn(14) * 2 - 1).to(DEVICE)
-            elif INTENT_KIND == "static":
-                b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
-                # print(b_u)
-            elif INTENT_KIND == "observable":
+            # candidate_docs_repr_item = candidate_docs_repr[:, :NUM_ITEM_FEATURES]
+
+            # candidate_docs_repr_length = candidate_docs_repr[
+            #     :, NUM_ITEM_FEATURES : NUM_ITEM_FEATURES + 1
+            # ]
+            # candidate_docs_repr_quality = candidate_docs_repr[
+            #     :, NUM_ITEM_FEATURES + 1 : NUM_ITEM_FEATURES + 2
+            # ]
+
+            if INTENT_KIND == "observable":
                 b_u = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
-            elif INTENT_KIND == "random_slate":
-                b_u = torch.Tensor(env.curr_user.features).to(DEVICE)
             else:
                 raise ValueError("invalid intent_kind")
 
@@ -265,10 +251,15 @@ if __name__ == "__main__":
             while not is_terminal:
                 with torch.no_grad():
                     ##########################################################################
-                    rew_cand = torch.mm(
-                        env.curr_user.get_state().unsqueeze(0),
-                        candidate_docs_repr.t(),
+                    rew_cand = (
+                        (1 - resp_amp_factor)
+                        * torch.mm(
+                            env.curr_user.get_state().unsqueeze(0),
+                            candidate_docs_repr_item.t(),
+                        )
+                        + resp_amp_factor * candidate_docs_repr_quality
                     ).squeeze(0)
+
                     max_rew = rew_cand.max()
                     min_rew = rew_cand.min()
                     mean_rew = rew_cand.mean()
@@ -277,21 +268,30 @@ if __name__ == "__main__":
                     max_sess.append(max_rew)
                     avg_sess.append(mean_rew)
                     ##########################################################################
-                    candidate_docs_repr_act, candidates = Actor.k_nearest(
+                    candidate_docs_repr, candidates = Actor.k_nearest(
                         b_u, candidate_docs_repr
                     )
                     candidates = candidate_docs[candidates]
+                    candidate_docs_repr_item = candidate_docs_repr[
+                        :, :NUM_ITEM_FEATURES
+                    ]
 
-                    b_u_rep = b_u.repeat((candidate_docs_repr_act.shape[0], 1))
+                    candidate_docs_repr_length = candidate_docs_repr[
+                        :, NUM_ITEM_FEATURES : NUM_ITEM_FEATURES + 1
+                    ]
+                    candidate_docs_repr_quality = candidate_docs_repr[
+                        :, NUM_ITEM_FEATURES + 1 : NUM_ITEM_FEATURES + 2
+                    ]
+                    b_u_rep = b_u.repeat((candidate_docs_repr_item.shape[0], 1))
 
                     q_val = bf_agent.agent.compute_q_values(
                         state=b_u_rep,
-                        candidate_docs_repr=candidate_docs_repr_act,
+                        candidate_docs_repr=candidate_docs_repr_item,
                         use_policy_net=True,
                     )  # type: ignore
 
                     choice_model.score_documents(
-                        user_state=b_u, docs_repr=candidate_docs_repr_act
+                        user_state=b_u, docs_repr=candidate_docs_repr_item
                     )
                     scores = torch.Tensor(choice_model.scores).to(DEVICE)
                     # apply softmax
@@ -307,18 +307,21 @@ if __name__ == "__main__":
                         )
                     else:
                         slate = bf_agent.get_action(scores, q_val)
+                        print(slate)
                         # print(slate)
 
                     selected_doc_feature, response, is_terminal, _, _ = env.step(
-                        slate, candidate_docs=candidates
+                        slate, candidate_docs=candidate_docs
                     )
+                    selected_doc_feature = selected_doc_feature[:NUM_ITEM_FEATURES]
                     # print(response)
                     response = (response - min_rew) / (max_rew - min_rew)
-                    b_u_next = update_belief(
-                        belief_state=b_u,
-                        selected_doc_feature=selected_doc_feature,
-                        intent_kind=INTENT_KIND,
-                    )
+                    b_u_next = env.curr_user.get_state()
+                    # b_u_next = update_belief(
+                    #     belief_state=b_u,
+                    #     selected_doc_feature=selected_doc_feature,
+                    #     intent_kind=INTENT_KIND,
+                    # )
 
                     # push memory
                     replay_memory_dataset.push(
@@ -405,18 +408,11 @@ if __name__ == "__main__":
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
-        if INTENT_KIND == "random_state":
-            directory = "random_state_slateq"
-        elif INTENT_KIND == "static":
-            directory = "static"
-        elif INTENT_KIND == "observable":
-            directory = f"observed_slateq_wolpertinger_{NEAREST_NEIGHBOURS}"
-        elif INTENT_KIND == "random_slate":
-            directory = "random_slate"
+        if INTENT_KIND == "observable":
+            directory = "observed_topic_wa_slateq"
+
         else:
-            raise ValueError(
-                "INTENT_KIND must be in ['random_state', 'static', 'observable','random_slate']"
-            )
+            raise ValueError("INTENT_KIND must be in ['observable']")
 
         wandb.finish()
 
@@ -434,10 +430,8 @@ if __name__ == "__main__":
         shutil.copy(source_path, destination_path)
 
         # Save the model
-        model_save_name = f"critic.pt"
-        model_save_name = f"actor.pt"
+        model_save_name = f"model.pt"
         torch.save(bf_agent, save_dir / Path(model_save_name))
-        torch.save(Actor, save_dir / Path(model_save_name))
 
         # save logs dict
         logs_save_name = Path(f"logs_dict.pickle")
