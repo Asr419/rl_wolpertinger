@@ -1,63 +1,32 @@
-name: run_simulation
-program: run_simulation.py
+yaml
 parameters:
   ######## User related parameters ########
-  resp_amp_factor:
-    value: 0.5
-  state_update_rate:
-    value: 0.99
-  state_model_cls:
-    value: ObservedUserState
-  choice_model_cls:
-    value: DotProductChoiceModel
-  response_model_cls:
-    value: DotProductResponseModel
-  ######## Environment related parameters ########
-  num_users:
-    value: 100
-  song_per_session:
-    value: 200
-  slate_size:
-    value: 5
-  num_item_features:
-    value: 20
-  num_candidates:
-    value: 100
-  num_user_features:
-    value: 20
-  ######## Training related parameters ########
-  batch_size:
-    value: 30
-  gamma:
-    value: 1.0
-  tau:
-    value: 0.001
-  lr:
-    value: 1e-4
-  num_episodes:
-    value: 1500
-  warmup_batches:
-    value: 1
-  device:
-    value: "cpu"
-  ######## Models related parameters ########
-  history_model_cls:
-    value: LastObservationModel
-  belief_model_cls:
-    value: NNBeliefModel
-  slate_gen_model_cls:
-    value: TopKSlateGenerator
-  hist_length:
-    value: 10
-  intent_kind:
-    value: "observable"
-  ######## Wolpertinger policy ########
-  nearest_neighbours:
-    value: 1000
-  ######## Seed ########
-  seeds: 
-    value: [2, 3, 5, 7, 9,11, 13, 17] #[42] #[11, 13, 17, 19, 23, 29] 
-  ######## Grouping ########
-  # grouping:
-  #   value: "TopK_hidden"
-  
+  resp_amp_factor: 1.0
+  state_model_cls: ObservedUserState
+  choice_model_cls: DotProductChoiceModel
+  response_model_cls: DotProductResponseModel
+   ######## Environment related parameters ########
+  num_users: 100
+  docs_per_session: 200
+  slate_size: 5
+  num_item_features: 20
+  num_candidates: 100
+  num_user_features: 20
+   ######## Training related parameters ########
+  replay_memory_capacity: 10000
+  batch_size: 30
+  gamma: 1.0
+  tau: 0.001
+  lr: 1e-4
+  num_episodes: 1500
+  warmup_batches: 1
+  device: "cpu"
+   ######## Models related parameters ########
+  slate_gen_model_cls: TopKSlateGenerator
+  hist_length: 10
+   ######## Wolpertinger policy ########
+  nearest_neighbours: 1000
+   ######## Seed ########
+  seeds: [2, 3, 5, 7, 9, 11, 13, 17]
+   ######## Grouping ########
+  # grouping: "TopK_hidden"

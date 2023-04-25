@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, IterableDataset
 
-from rl_recsys.agent_modeling.agent import AbstractSlateAgent
+from rl_recsys.agent_modeling.agent import SlateAgent
 
 
 # defining different kind of named tuples for different agents
@@ -18,25 +18,6 @@ class Transition(NamedTuple):
     candidate_docs: torch.Tensor
     reward: torch.Tensor
     next_state: torch.Tensor
-
-
-class GruTransition(NamedTuple):
-    # the next state will be computed by the GRU
-    state: torch.Tensor
-    selected_doc_feat: torch.Tensor
-    candidate_docs: torch.Tensor
-    reward: torch.Tensor
-    gru_buffer: torch.Tensor
-
-
-class BeliefTransition(NamedTuple):
-    # the next state will be computed by the GRU
-    prev_obs_buff: torch.Tensor
-    prev_bu: torch.Tensor
-    selected_doc_feat: torch.Tensor
-    candidate_docs: torch.Tensor
-    reward: torch.Tensor
-    obs_buffer: torch.Tensor
 
 
 class ReplayMemoryDataset(IterableDataset):
@@ -62,31 +43,6 @@ class ReplayMemoryDataset(IterableDataset):
         return preprocessed_batch
 
 
-# class ReplayMemoryDataset(Dataset):
-#     def __init__(self, capacity: int, transition_cls):
-#         self.capacity = capacity
-#         self.memory = deque([], maxlen=capacity)
-#         self.Transition = transition_cls
-
-#     def push(self, transition):
-#         """Save a transition"""
-#         self.memory.append(transition)
-
-#     def __getitem__(self, index):
-#         return self.memory[index]
-
-#     def __len__(self):
-#         return len(self.memory)
-
-#     def collate_fn(self, batch):
-#         transitions_batch = self.Transition(*zip(*batch))
-#         preprocessed_batch = [
-#             torch.stack(getattr(transitions_batch, field_name))
-#             for field_name in transitions_batch._fields
-#         ]
-#         return preprocessed_batch
-
-
 class DQNnet(nn.Module):
     def __init__(self, input_size, hidden_dims: list[int], output_size=1):
         # todo: change intra dimensions
@@ -110,7 +66,7 @@ class DQNnet(nn.Module):
         return x
 
 
-class DQNAgent(AbstractSlateAgent, nn.Module):
+class DQNAgent(SlateAgent, nn.Module):
     def __init__(
         self,
         slate_gen,
@@ -120,15 +76,13 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         tau: float = 0.001,
     ) -> None:
         # init super classes
-        AbstractSlateAgent.__init__(self, slate_gen)
+        SlateAgent.__init__(self, slate_gen=slate_gen)
         nn.Module.__init__(self)
         self.tau = tau
-
         # init DQN nets
         self.policy_net = DQNnet(
             input_size=input_size, output_size=output_size, hidden_dims=hidden_dims
         )
-
         # note that the target network is not updated during training
         self.target_net = DQNnet(
             input_size=input_size, output_size=output_size, hidden_dims=hidden_dims
@@ -139,7 +93,6 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
     def soft_update_target_network(self):
         # Soft update of the target network's weights
         # θ′ ← τ θ + (1 −τ )θ′
-
         target_net_state_dict = self.target_net.state_dict()
         policy_net_state_dict = self.policy_net.state_dict()
 
@@ -163,6 +116,3 @@ class DQNAgent(AbstractSlateAgent, nn.Module):
         else:
             q_val = self.target_net(input1)
         return q_val
-
-    def compute_target_q_values(self, next_state, reward):
-        pass

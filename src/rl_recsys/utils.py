@@ -1,22 +1,40 @@
+import os
+import pickle
+import shutil
+from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
+import torch
+from dotenv import load_dotenv
 
-# TODO: to be moved in the env file
-DATA_PATH = Path(Path.home() / "rsys_data")
-SAVE_PATH = DATA_PATH / "prep_spotify.feather"
-SAVE_PATH_TOPIC = DATA_PATH / "prep_topic.feather"
+load_dotenv()
 
 
-def load_spotify_data() -> pd.DataFrame:
-    """Load spotify data."""
-    return pd.read_feather(SAVE_PATH)
+def save_run(seed, agent, save_dict):
+    save_path = Path(os.environ.get("SAVE_PATH"))  # type: ignore
+    save_path = Path.home() / save_path
+    save_path.mkdir(parents=True, exist_ok=True)
 
-def load_topic_data()-> pd.DataFrame:
-    """Load topic data."""
-    return pd.read_feather(SAVE_PATH_TOPIC)
+    time_now = datetime.now().strftime("%m-%d_%H-%M-%S")
+    directory = "observed_topic_slateq"
+    directory = directory + "_" + str(seed)
 
+    # Create the directory with the folder name
+    path = Path(directory + "_" + time_now)
+    save_dir = Path(save_path / path)
+    save_dir.mkdir(parents=True, exist_ok=True)
 
-if __name__ == "__main__":
-    print(load_spotify_data())
-    print(load_topic_data())
+    # save config
+    source_path = "src/scripts/config.yaml"
+    destination_path = save_dir / Path("config.yaml")
+    shutil.copy(source_path, destination_path)
+
+    # Save the model
+    model_save_name = f"model.pt"
+    torch.save(agent, save_dir / Path(model_save_name))
+
+    # save logs dict
+    logs_save_name = Path(f"logs_dict.pickle")
+    with open(save_dir / logs_save_name, "wb") as f:
+        pickle.dump(save_dict, f)
+    print(f"Run saved successfully in: {save_dir}")
