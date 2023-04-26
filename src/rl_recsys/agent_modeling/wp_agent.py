@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 
 class WolpertingerActor(nn.Module):
-    def __init__(self, nn_dim: list[int], k: int, input_dim: int = 14):
+    def __init__(self, nn_dim: list[int], k: int, input_dim: int = 20):
         super(WolpertingerActor, self).__init__()
         self.k = k
 
@@ -41,5 +41,5 @@ class WolpertingerActor(nn.Module):
         indices = torch.argsort(distances, dim=0)[: self.k]
         # Select k closest tensors from tensor list
         candidates_subset = candidate_docs[indices]
-        
+
         return candidates_subset, indices
