@@ -9,7 +9,7 @@ import torch.distributions as dist
 
 @dataclass
 class DocumentSampler:
-    # default values as in RecSim paper
+    # default values as in SlateQ paper
     num_topics: int = 20
     frac_low_quality_topics: float = 0.7
     low_quality_interval: tuple[float, float] = (-3.0, 0.0)
@@ -17,9 +17,11 @@ class DocumentSampler:
     high_quality_interval: tuple[float, float] = (0.0, 3.0)
     high_quality_variance: float = 1.0
     doc_length: int = 4
+    seed: int = None
     device: str = "cpu"
 
     def __post_init__(self):
+        torch.manual_seed(self.seed)
         num_low_quality_topics = int(self.frac_low_quality_topics * self.num_topics)
         num_high_quality_topics = self.num_topics - num_low_quality_topics
         # Initialize the topic distribution over documents

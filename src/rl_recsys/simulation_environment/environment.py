@@ -80,7 +80,14 @@ class SlateGym(gym.Env):
         is_terminal = self.curr_user.is_terminal()
         info = {}
 
-        return selected_doc_feature, response, is_terminal, False, info
+        return (
+            selected_doc_feature,
+            selected_doc_quality,
+            response,
+            is_terminal,
+            False,
+            info,
+        )
 
     def reset(self) -> None:
         # 1) sample user

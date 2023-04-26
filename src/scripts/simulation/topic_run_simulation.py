@@ -36,7 +36,7 @@ def optimize_model(batch):
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
-    expected_q_values = q_tgt * GAMMA + reward_batch
+    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
 
     loss = criterion(q_val, expected_q_values)
 
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
         # TODO: dont really now why needed there we shold use the one associated to the user sampled for the episode
         choice_model = choice_model_cls()
-        doc_sampler = DocumentSampler()
+        doc_sampler = DocumentSampler(seed=seed)
         env = SlateGym(
             user_sampler=user_sampler,
             doc_sampler=doc_sampler,
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         save_dict = defaultdict(list)
         is_terminal = False
         for i_episode in tqdm(range(NUM_EPISODES)):
-            reward, loss, diff_to_best = [], [], []
+            reward, loss, diff_to_best, quality = [], [], [], []
 
             env.reset()
             is_terminal = False
@@ -209,12 +209,18 @@ if __name__ == "__main__":
                     slate = agent.get_action(scores, q_val)
                     # print("slate: ", slate)
 
-                    selected_doc_feature, response, is_terminal, _, _ = env.step(
-                        slate, cdocs_subset_idx=None
-                    )
+                    (
+                        selected_doc_feature,
+                        doc_quality,
+                        response,
+                        is_terminal,
+                        _,
+                        _,
+                    ) = env.step(slate, cdocs_subset_idx=None)
                     # normalize reward between 0 and 1
                     # response = (response - min_rew) / (max_rew - min_rew)
                     reward.append(response)
+                    quality.append(doc_quality)
 
                     next_user_state = env.curr_user.get_state()
                     # push memory
@@ -240,6 +246,7 @@ if __name__ == "__main__":
 
             loss = torch.mean(torch.tensor(loss))
 
+            ep_quality = torch.mean(torch.tensor(quality))
             ep_avg_reward = torch.mean(torch.tensor(reward))
             ep_cum_reward = torch.sum(torch.tensor(reward))
             ep_max_avg = torch.mean(torch.tensor(max_sess))
@@ -262,6 +269,7 @@ if __name__ == "__main__":
             print(log_str)
             ###########################################################################
             log_dict = {
+                "quality": ep_quality,
                 "avg_reward": ep_avg_reward,
                 "cum_reward": ep_cum_reward,
                 "max_avg": ep_max_avg,
