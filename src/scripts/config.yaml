@@ -9,22 +9,22 @@ parameters:
   sess_budget: 200
   slate_size: 5
   num_item_features: 20
-  num_candidates: 100
+  num_candidates: 300
   num_user_features: 20
-  alpha_response: 0.5
+  alpha_response: 1.0
   ######## Training related parameters ########
   replay_memory_capacity: 10000
   batch_size: 30
   gamma: 1.0
   tau: 0.001
   lr: 1e-4
-  num_episodes: 20000
+  num_episodes: 50000
   warmup_batches: 1
   device: "cpu"
   ######## Models related parameters ########
   slate_gen_model_cls: TopKSlateGenerator
   ######## Wolpertinger policy ########
-  nearest_neighbours: 1000
+  nearest_neighbours: 30
   ######## Seed ########
   seeds: [5, 7, 9, 11, 13, 17]
   ######## Grouping ########

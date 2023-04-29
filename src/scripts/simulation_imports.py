@@ -23,7 +23,7 @@ from rl_recsys.agent_modeling.slate_generator import (  # DiverseSlateGenerator,
     RandomSlateGenerator,
     TopKSlateGenerator,
 )
-from rl_recsys.agent_modeling.wp_agent import WolpertingerActor
+from rl_recsys.agent_modeling.wp_agent import WolpertingerActor, ActorAgent
 from rl_recsys.document_modeling.document_sampler import DocumentSampler
 from rl_recsys.simulation_environment.environment import SlateGym
 from rl_recsys.user_modeling.choice_model import (

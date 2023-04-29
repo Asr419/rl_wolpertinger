@@ -210,6 +210,7 @@ if __name__ == "__main__":
 
                     q_val = q_val.squeeze()
                     slate = agent.get_action(scores, q_val)
+
                     # print("slate: ", slate)
 
                     (
@@ -219,7 +220,7 @@ if __name__ == "__main__":
                         is_terminal,
                         _,
                         _,
-                    ) = env.step(slate, cdocs_subset_idx=None)
+                    ) = env.step(slate, cdocs_subset_idx=candidates)
                     # normalize reward between 0 and 1
                     # response = (response - min_rew) / (max_rew - min_rew)
                     reward.append(response)

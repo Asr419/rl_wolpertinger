@@ -54,6 +54,7 @@ class DocumentSampler:
 
     def sample_document(self) -> tuple[torch.Tensor, torch.Tensor, int]:
         # Sample a topic
+
         topic = self.topic_dist.sample()
         doc = torch.zeros(self.num_topics)
         doc[topic] = 1
@@ -70,6 +71,7 @@ class DocumentSampler:
         docs = torch.zeros(num_samples, self.num_topics)
         qualities = torch.zeros(num_samples)
         doc_length = torch.zeros(num_samples)
+        torch.manual_seed(self.seed)
         for i in range(num_samples):
             doc, quality, doc_len = self.sample_document()
             docs[i] = doc
