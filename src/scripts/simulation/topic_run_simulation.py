@@ -94,7 +94,7 @@ if __name__ == "__main__":
         slate_gen_model_cls = parameters["slate_gen_model_cls"]
 
         ######## Init_wandb ########
-        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}"
+        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}_ALPHA_{ALPHA_RESPONSE}_SLATEQ"
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
 
         ################################################################

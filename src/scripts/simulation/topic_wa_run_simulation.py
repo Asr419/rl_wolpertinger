@@ -23,7 +23,9 @@ def optimize_model(batch):
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
-        candidates, _ = actor.k_nearest(next_state, candidates)
+        candidates, _ = actor.k_nearest(
+            next_state, candidates, use_actor_policy_net=False
+        )
 
         candidates = candidates[:, :NUM_ITEM_FEATURES]
 
@@ -115,7 +117,7 @@ if __name__ == "__main__":
         slate_gen_model_cls = parameters["slate_gen_model_cls"]
 
         ######## Init_wandb ########
-        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}"
+        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}_ALPHA_{ALPHA_RESPONSE}_WA"
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
 
         ################################################################
@@ -214,7 +216,7 @@ if __name__ == "__main__":
                     avg_sess.append(mean_rew)
                     ########################################
                     cdocs_features_act, candidates = actor.k_nearest(
-                        user_state, cdocs_features
+                        user_state, cdocs_features, use_actor_policy_net=True
                     )
 
                     user_state_rep = user_state.repeat((cdocs_features_act.shape[0], 1))
@@ -268,7 +270,7 @@ if __name__ == "__main__":
                     elem.to(DEVICE)
                 batch_loss, batch_actor_loss = optimize_model(batch)
                 agent.soft_update_target_network()
-                # actor.soft_update_target_network()
+                actor.soft_update_target_network()
                 loss.append(batch_loss)
                 actor_loss.append(batch_actor_loss)
 
@@ -326,4 +328,10 @@ if __name__ == "__main__":
 
         wandb.finish()
         directory = "observed_topic_wa_slateq"
-        save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)
+        save_run_wa(
+            seed=seed,
+            save_dict=save_dict,
+            agent=agent,
+            directory=directory,
+            actor=actor,
+        )

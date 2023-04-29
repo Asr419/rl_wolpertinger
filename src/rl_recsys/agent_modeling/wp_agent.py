@@ -82,9 +82,14 @@ class ActorAgent(nn.Module):
             return self.actor_target_net(state)
 
     def k_nearest(
-        self, input_state: torch.Tensor, candidate_docs: torch.Tensor
+        self,
+        input_state: torch.Tensor,
+        candidate_docs: torch.Tensor,
+        use_actor_policy_net,
     ) -> None:
-        proto_action = self.compute_proto_action(input_state, use_actor_policy_net=True)
+        proto_action = self.compute_proto_action(
+            input_state, use_actor_policy_net=use_actor_policy_net
+        )
         distances = torch.linalg.norm(candidate_docs - proto_action, axis=1)
         # Sort distances and get indices of k smallest distances
         indices = torch.argsort(distances, dim=0)[: self.k]

@@ -41,7 +41,7 @@ from rl_recsys.user_modeling.response_model import (
 )
 from rl_recsys.user_modeling.user_model import UserSampler
 from rl_recsys.user_modeling.user_state import ObservableUserState
-from rl_recsys.utils import save_run
+from rl_recsys.utils import save_run, save_run_wa
 
 class_name_to_class = {
     "ObservedUserState": ObservableUserState,
