@@ -13,7 +13,7 @@ parameters:
   num_user_features: 20
   alpha_response: 0.5
   ######## Training related parameters ########
-  replay_memory_capacity: 5000
+  replay_memory_capacity: 10000
   batch_size: 30
   gamma: 1.0
   tau: 0.001
@@ -26,7 +26,8 @@ parameters:
   ######## Wolpertinger policy ########
   nearest_neighbours: 60
   ######## Seed ########
-  seeds: [27,29,31]
+  seeds: [4]
+  #test=[140, 184, 30, 62, 4]
   #test = [27,29,31]
   #[5,7,42,97,99]
   #[5,7,42,97, 33]

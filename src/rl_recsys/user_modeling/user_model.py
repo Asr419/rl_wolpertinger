@@ -20,6 +20,8 @@ user_response_model_type = TypeVar(
 )
 feature_gen_type = TypeVar("feature_gen_type", bound=AbstractFeaturesGenerator)
 
+randomList = []
+
 
 class UserModel(nn.Module):
     def __init__(
@@ -120,6 +122,11 @@ class UserSampler:
         assert (
             len(self.users) > 0
         ), "No users generated yet. call generate_user_batch() first.)"
-        i = np.random.randint(0, len(self.users))
+        while True:
+            i = np.random.randint(0, len(self.users))
+            if i not in randomList:
+                break
+        randomList.append(i)
+
         print(f"sampled user {i}")
         return self.users[i]

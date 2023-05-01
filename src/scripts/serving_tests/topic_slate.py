@@ -109,7 +109,7 @@ if __name__ == "__main__":
         save_dict = defaultdict(list)
         is_terminal = False
         for i_episode in tqdm(range(NUM_EPISODES)):
-            reward, loss, diff_to_best, quality = [], [], [], []
+            reward, diff_to_best, quality = [], [], []
 
             env.reset()
             is_terminal = False
@@ -229,5 +229,5 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = "test_observed_topic_slateq"
+        directory = "test_serving_observed_topic_slateq"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

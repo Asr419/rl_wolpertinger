@@ -2,9 +2,9 @@ from scripts.simulation_imports import *
 
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
-PATH = "../../pomdp_saved_models/observed_topic_wa_20_slateq_42_05-01_02-08-58/model.pt"
+PATH = "../../pomdp_saved_models/observed_topic_wa_5_slateq_42_05-01_02-10-57/model.pt"
 ACTOR_PATH = (
-    "../../pomdp_saved_models/observed_topic_wa_20_slateq_42_05-01_02-08-58/actor.pt"
+    "../../pomdp_saved_models/observed_topic_wa_5_slateq_42_05-01_02-10-57/actor.pt"
 )
 
 if __name__ == "__main__":
@@ -236,5 +236,5 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = "test_wa_20_observed_topic_slateq"
+        directory = "test_wa_5_serving_observed_topic_slateq"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)
