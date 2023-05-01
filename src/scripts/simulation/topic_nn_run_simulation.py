@@ -1,10 +1,7 @@
-from rl_recsys.user_modeling.features_gen import UniformFeaturesGenerator
 from scripts.simulation_imports import *
 
 
 def optimize_model(batch):
-    optimizer.zero_grad()
-
     (
         state_batch,  # [batch_size, num_item_features]
         selected_doc_feat_batch,  # [batch_size, num_item_features]
@@ -13,59 +10,40 @@ def optimize_model(batch):
         next_state_batch,  # [batch_size, num_item_features]
     ) = batch
 
+    optimizer.zero_grad()
+
     # Q(s, a): [batch_size, 1]
     q_val = agent.compute_q_values(
         state_batch, selected_doc_feat_batch, use_policy_net=True
     )  # type: ignore
 
-    # with torch.no_grad():
     cand_qtgt_list = []
     for b in range(next_state_batch.shape[0]):
         next_state = next_state_batch[b, :]
         candidates = candidates_batch[b, :, :]
-        # candidates, _ = actor.k_nearest(
-        #     next_state, candidates, use_actor_policy_net=False
-        # )
-
-        candidates = candidates[:, :NUM_ITEM_FEATURES]
-
         next_state_rep = next_state.repeat((candidates.shape[0], 1))
+
         cand_qtgt = agent.compute_q_values(
             next_state_rep, candidates, use_policy_net=False
         )  # type: ignore
-        # cand_qtgt = agent.compute_q_values(
-        #     next_state_rep,
-        #     actor.compute_proto_action(next_state_rep, use_actor_policy_net=False),
-        # )
 
         choice_model.score_documents(next_state, candidates)
-        # [num_candidates, 1]
-        scores_tens = torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
-        # max over Q(s', a)
+        scores_tens = (
+            torch.Tensor(choice_model.scores).to(DEVICE).unsqueeze(dim=1)
+        )  # [num_candidates, 1]
+        # retrieve max_a Q(s', a)
         scores_tens = torch.softmax(scores_tens, dim=0)
-
         cand_qtgt_list.append((cand_qtgt * scores_tens).max())
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
-
     expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
 
-    # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
 
     # Optimize the model
     loss.backward()
     optimizer.step()
-
-    actor_loss = -agent.compute_q_values(
-        state_batch,
-        actor.compute_proto_action(state_batch, use_actor_policy_net=True),
-        use_policy_net=True,
-    )
-    actor_loss = actor_loss.mean()
-    actor_loss.backward()
-    actor_optimizer.step()
-    return loss, actor_loss
+    return loss
 
 
 if __name__ == "__main__":
@@ -101,7 +79,6 @@ if __name__ == "__main__":
         NUM_USER_FEATURES = parameters["num_user_features"]
         ALPHA_RESPONSE = parameters["alpha_response"]
         NEAREST_NEIGHBOURS = parameters["nearest_neighbours"]
-        GROUPING = parameters["grouping"]
 
         ######## Training related parameters ########
         REPLAY_MEMORY_CAPACITY = parameters["replay_memory_capacity"]
@@ -118,7 +95,9 @@ if __name__ == "__main__":
         slate_gen_model_cls = parameters["slate_gen_model_cls"]
 
         ######## Init_wandb ########
-        RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}_ALPHA_{ALPHA_RESPONSE}_{GROUPING}"
+        RUN_NAME = (
+            f"Topic_GAMMA_{GAMMA}_SEED_{seed}_ALPHA_{ALPHA_RESPONSE}_SLATEQ_k_nearest"
+        )
         wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
 
         ################################################################
@@ -175,17 +154,16 @@ if __name__ == "__main__":
             collate_fn=replay_memory_dataset.collate_fn,
             shuffle=False,
         )
-        actor = ActorAgent(nn_dim=[20, 20], k=NEAREST_NEIGHBOURS)
 
         criterion = torch.nn.SmoothL1Loss()
         optimizer = optim.Adam(agent.parameters(), lr=LR)
-        actor_optimizer = optim.Adam(actor.parameters(), lr=LR)
+        actor = ActorAgent(nn_dim=[20, 20], k=NEAREST_NEIGHBOURS)
 
         ############################## TRAINING ###################################
         save_dict = defaultdict(list)
         is_terminal = False
         for i_episode in tqdm(range(NUM_EPISODES)):
-            reward, loss, diff_to_best, quality, actor_loss = [], [], [], [], []
+            reward, loss, diff_to_best, quality = [], [], [], []
 
             env.reset()
             is_terminal = False
@@ -216,10 +194,9 @@ if __name__ == "__main__":
                     max_sess.append(max_rew)
                     avg_sess.append(mean_rew)
                     ########################################
-                    cdocs_features_act, candidates = actor.k_nearest(
-                        user_state, cdocs_features, use_actor_policy_net=True
+                    cdocs_features_act, candidates = actor.k_nearest_to_state(
+                        user_state, cdocs_features
                     )
-
                     user_state_rep = user_state.repeat((cdocs_features_act.shape[0], 1))
 
                     q_val = agent.compute_q_values(
@@ -269,14 +246,11 @@ if __name__ == "__main__":
                 batch = next(iter(replay_memory_dataloader))
                 for elem in batch:
                     elem.to(DEVICE)
-                batch_loss, batch_actor_loss = optimize_model(batch)
+                batch_loss = optimize_model(batch)
                 agent.soft_update_target_network()
-                # actor.soft_update_target_network()
                 loss.append(batch_loss)
-                actor_loss.append(batch_actor_loss)
 
             loss = torch.mean(torch.tensor(loss))
-            actor_loss = torch.mean(torch.tensor(actor_loss))
 
             ep_quality = torch.mean(torch.tensor(quality))
             ep_avg_reward = torch.mean(torch.tensor(reward))
@@ -293,7 +267,6 @@ if __name__ == "__main__":
 
             log_str = (
                 f"Loss: {loss}\n"
-                f"Actor_Loss: {actor_loss}\n"
                 f"Avg_Reward: {ep_avg_reward} - Cum_Rew: {ep_cum_reward}\n"
                 f"Max_Avg_Reward: {ep_max_avg} - Max_Cum_Rew: {ep_max_cum}\n"
                 f"Avg_Avg_Reward: {ep_avg_avg} - Avg_Cum_Rew: {ep_avg_cum}\n"
@@ -315,24 +288,16 @@ if __name__ == "__main__":
             }
             if len(replay_memory_dataset.memory) >= (WARMUP_BATCHES * BATCH_SIZE):
                 log_dict["loss"] = loss
-                log_dict["actor_loss"] = actor_loss
             wandb.log(log_dict, step=i_episode)
 
             ###########################################################################
             save_dict["ep_cum_reward"].append(ep_cum_reward)
             save_dict["ep_avg_reward"].append(ep_avg_reward)
             save_dict["loss"].append(loss)
-            save_dict["actor_loss"].append(actor_loss)
             save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = "observed_topic_wa_5_slateq"
-        save_run_wa(
-            seed=seed,
-            save_dict=save_dict,
-            agent=agent,
-            directory=directory,
-            actor=actor,
-        )
+        directory = "observed_topic_k_nearest_slateq"
+        save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)
