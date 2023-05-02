@@ -145,8 +145,12 @@ if __name__ == "__main__":
                 while not is_terminal:
                     start = time.time()
                     with torch.no_grad():
-                        cdocs_features_act, candidates = actor.k_nearest(
-                            user_state, cdocs_features, use_actor_policy_net=True
+                        NEAREST_NEIGHBOURS = int((run_k) * (num_candidates / 100))
+                        cdocs_features_act, candidates = actor.test_k_nearest(
+                            user_state,
+                            cdocs_features,
+                            use_actor_policy_net=True,
+                            nearest_neighbours=NEAREST_NEIGHBOURS,
                         )
 
                         q_val_list = []

@@ -19,7 +19,7 @@ def save_run(seed, agent, save_dict, directory: str):
     directory = directory + "_" + str(seed)
 
     # Create the directory with the folder name
-    path = Path(directory + "_" + time_now)
+    path = Path(directory)
     save_dir = Path(save_path / path)
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,7 +48,7 @@ def save_run_wa(seed, agent, save_dict, directory: str, actor):
     directory = directory + "_" + str(seed)
 
     # Create the directory with the folder name
-    path = Path(directory + "_" + time_now)
+    path = Path(directory)
     save_dir = Path(save_path / path)
     save_dir.mkdir(parents=True, exist_ok=True)
 
