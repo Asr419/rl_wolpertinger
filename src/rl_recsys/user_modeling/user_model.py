@@ -122,11 +122,13 @@ class UserSampler:
         assert (
             len(self.users) > 0
         ), "No users generated yet. call generate_user_batch() first.)"
-        while True:
-            i = np.random.randint(0, len(self.users))
-            if i not in randomList:
-                break
-        randomList.append(i)
+
+        i = np.random.randint(0, len(self.users))
+        # while True:
+        #     i = np.random.randint(0, len(self.users))
+        #     if i not in randomList:
+        #         break
+        # randomList.append(i)
 
         print(f"sampled user {i}")
         return self.users[i]
