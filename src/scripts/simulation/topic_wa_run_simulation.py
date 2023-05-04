@@ -328,7 +328,7 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = "observed_topic_wa_10_slateq"
+        directory = f"observed_topic_wa_20_slateq_{ALPHA_RESPONSE}"
         save_run_wa(
             seed=seed,
             save_dict=save_dict,
