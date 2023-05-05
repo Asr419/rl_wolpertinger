@@ -44,7 +44,11 @@ def optimize_model(batch):
         # max over Q(s', a)
         scores_tens = torch.softmax(scores_tens, dim=0)
 
-        cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+        # cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+        curr_q_tgt = torch.topk(
+            (cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE
+        ).values.sum()
+        cand_qtgt_list.append(curr_q_tgt)
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
 

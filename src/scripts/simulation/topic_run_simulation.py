@@ -33,7 +33,14 @@ def optimize_model(batch):
         )  # [num_candidates, 1]
         # retrieve max_a Q(s', a)
         scores_tens = torch.softmax(scores_tens, dim=0)
-        cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+
+        # wrong
+        # cand_qtgt_list.append((cand_qtgt * scores_tens).max())
+
+        curr_q_tgt = torch.topk(
+            (cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE
+        ).values.sum()
+        cand_qtgt_list.append(curr_q_tgt)
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
     expected_q_values = q_tgt * GAMMA + satisfaction_batch.unsqueeze(dim=1)
