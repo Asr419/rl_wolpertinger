@@ -13,9 +13,9 @@ class DocumentSampler:
     num_topics: int = 20
     frac_low_quality_topics: float = 0.7
     low_quality_interval: tuple[float, float] = (-3.0, 0.0)
-    low_quality_variance: float = 1.0
+    low_quality_variance: float = 0.1
     high_quality_interval: tuple[float, float] = (0.0, 3.0)
-    high_quality_variance: float = 1.0
+    high_quality_variance: float = 0.1
     doc_length: int = 4
     seed: int = None
     device: str = "cpu"

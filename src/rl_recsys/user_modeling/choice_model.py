@@ -48,16 +48,18 @@ class NormalizableChoiceModel(AbstractChoiceModel):
         assert (
             self._scores is not None
         ), "Scores are not computed yet. call score_documents() first."
-        # -1 indicates no document is selected
-        selected_index = self.no_selection_token
-        # if torch.any(self._scores >= satisfaction_threshold):
 
         all_probs = self._scores
+        # add null document, by adding a score of 0 at the last postin of the tensor _scores
+        all_probs = torch.cat((all_probs, torch.tensor([0.0])))
         all_probs = torch.softmax(all_probs, dim=0)
         # select the item according to the probability distribution all_probs
         selected_index = int(torch.multinomial(all_probs, num_samples=1).item())
-
-        return selected_index
+        # check if the selected item is the null document return no_selection_token
+        if selected_index == len(all_probs) - 1:
+            return self.no_selection_token
+        else:
+            return selected_index
 
     @abc.abstractmethod
     def _score_documents(
@@ -67,9 +69,6 @@ class NormalizableChoiceModel(AbstractChoiceModel):
 
     def score_documents(self, user_state: torch.Tensor, docs_repr: torch.Tensor):
         self._scores = self._score_documents(user_state, docs_repr)
-
-        # normalize logits sum to 1
-        # Use softmax scores instead of exponential scores to avoid overflow.
 
 
 class DotProductChoiceModel(NormalizableChoiceModel):

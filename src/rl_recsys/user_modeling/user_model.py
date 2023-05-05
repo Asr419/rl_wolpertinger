@@ -61,6 +61,9 @@ class UserModel(nn.Module):
         depreciation = doc_length - (9 / 34) * doc_length * _response
         self.budget -= depreciation
 
+    def update_budget_noselection(self) -> None:
+        self.budget -= 0.5
+
 
 class UserSampler:
     # has to call user features generator to initialize a user
