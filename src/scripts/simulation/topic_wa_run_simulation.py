@@ -9,7 +9,7 @@ def optimize_model(batch):
         state_batch,  # [batch_size, num_item_features]
         selected_doc_feat_batch,  # [batch_size, num_item_features]
         candidates_batch,  # [batch_size, num_candidates, num_item_features]
-        reward_batch,  # [batch_size, 1]
+        satisfaction_batch,  # [batch_size, 1]
         next_state_batch,  # [batch_size, num_item_features]
     ) = batch
 
@@ -52,7 +52,7 @@ def optimize_model(batch):
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
 
-    expected_q_values = q_tgt * GAMMA + reward_batch.unsqueeze(dim=1)
+    expected_q_values = q_tgt * GAMMA + satisfaction_batch.unsqueeze(dim=1)
 
     # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
@@ -189,11 +189,11 @@ if __name__ == "__main__":
         save_dict = defaultdict(list)
         is_terminal = False
         for i_episode in tqdm(range(NUM_EPISODES)):
-            reward, loss, diff_to_best, quality, actor_loss = [], [], [], [], []
+            satisfaction, loss, diff_to_best, quality, actor_loss = [], [], [], [], []
 
             env.reset()
             is_terminal = False
-            cum_reward = 0
+            cum_satisfaction = 0
 
             cdocs_features, cdocs_quality, cdocs_length = env.get_candidate_docs()
             user_state = torch.Tensor(env.curr_user.get_state()).to(DEVICE)
@@ -203,7 +203,7 @@ if __name__ == "__main__":
                 # print("user_state: ", user_state)
                 with torch.no_grad():
                     ########################################
-                    rewards_candidates = (
+                    satisfactions_candidates = (
                         (1 - ALPHA_RESPONSE)
                         * torch.mm(
                             user_state.unsqueeze(0),
@@ -212,10 +212,10 @@ if __name__ == "__main__":
                         + ALPHA_RESPONSE * cdocs_quality
                     ).squeeze(0) * resp_amp_factor
 
-                    max_rew = rewards_candidates.max()
-                    min_rew = rewards_candidates.min()
-                    mean_rew = rewards_candidates.mean()
-                    std_rew = rewards_candidates.std()
+                    max_rew = satisfactions_candidates.max()
+                    min_rew = satisfactions_candidates.min()
+                    mean_rew = satisfactions_candidates.mean()
+                    std_rew = satisfactions_candidates.std()
 
                     max_sess.append(max_rew)
                     avg_sess.append(mean_rew)
@@ -250,9 +250,9 @@ if __name__ == "__main__":
                         _,
                         _,
                     ) = env.step(slate, cdocs_subset_idx=candidates)
-                    # normalize reward between 0 and 1
+                    # normalize satisfaction between 0 and 1
                     # response = (response - min_rew) / (max_rew - min_rew)
-                    reward.append(response)
+                    satisfaction.append(response)
                     quality.append(doc_quality)
 
                     next_user_state = env.curr_user.get_state()
@@ -281,39 +281,39 @@ if __name__ == "__main__":
 
             loss = torch.mean(torch.tensor(loss))
             actor_loss = torch.mean(torch.tensor(actor_loss))
-
+            sess_length = len(torch.tensor(quality))
             ep_quality = torch.mean(torch.tensor(quality))
-            ep_avg_reward = torch.mean(torch.tensor(reward))
-            ep_cum_reward = torch.sum(torch.tensor(reward))
+            ep_avg_satisfaction = torch.mean(torch.tensor(satisfaction))
+            ep_cum_satisfaction = torch.sum(torch.tensor(satisfaction))
             ep_max_avg = torch.mean(torch.tensor(max_sess))
             ep_max_cum = torch.sum(torch.tensor(max_sess))
             ep_avg_avg = torch.mean(torch.tensor(avg_sess))
             ep_avg_cum = torch.sum(torch.tensor(avg_sess))
             cum_normalized = (
-                ep_cum_reward / ep_max_cum
+                ep_cum_satisfaction / ep_max_cum
                 if ep_max_cum > 0
-                else ep_max_cum / ep_cum_reward
+                else ep_max_cum / ep_cum_satisfaction
             )
 
             log_str = (
                 f"Loss: {loss}\n"
                 f"Actor_Loss: {actor_loss}\n"
-                f"Avg_Reward: {ep_avg_reward} - Cum_Rew: {ep_cum_reward}\n"
-                f"Max_Avg_Reward: {ep_max_avg} - Max_Cum_Rew: {ep_max_cum}\n"
-                f"Avg_Avg_Reward: {ep_avg_avg} - Avg_Cum_Rew: {ep_avg_cum}\n"
+                f"Avg_satisfaction: {ep_avg_satisfaction} - Cum_Rew: {ep_cum_satisfaction}\n"
+                f"Max_Avg_satisfaction: {ep_max_avg} - Max_Cum_Rew: {ep_max_cum}\n"
+                f"Avg_Avg_satisfaction: {ep_avg_avg} - Avg_Cum_Rew: {ep_avg_cum}\n"
                 f"Cumulative_Normalized: {cum_normalized}"
             )
             print(log_str)
             ###########################################################################
             log_dict = {
                 "quality": ep_quality,
-                "avg_reward": ep_avg_reward,
-                "cum_reward": ep_cum_reward,
+                "avg_satisfaction": ep_avg_satisfaction,
+                "cum_satisfaction": ep_cum_satisfaction,
                 "max_avg": ep_max_avg,
                 "max_cum": ep_max_cum,
                 "avg_avg": ep_avg_avg,
                 "avg_cum": ep_avg_cum,
-                "best_rl_avg_diff": ep_max_avg - ep_avg_reward,
+                "best_rl_avg_diff": ep_max_avg - ep_avg_satisfaction,
                 "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
                 "cum_normalized": cum_normalized,
             }
@@ -323,11 +323,12 @@ if __name__ == "__main__":
             wandb.log(log_dict, step=i_episode)
 
             ###########################################################################
-            save_dict["ep_cum_reward"].append(ep_cum_reward)
-            save_dict["ep_avg_reward"].append(ep_avg_reward)
+            save_dict["session_length"].append(sess_length)
+            save_dict["ep_cum_satisfaction"].append(ep_cum_satisfaction)
+            save_dict["ep_avg_satisfaction"].append(ep_avg_satisfaction)
             save_dict["loss"].append(loss)
             save_dict["actor_loss"].append(actor_loss)
-            save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_reward)
+            save_dict["best_rl_avg_diff"].append(ep_max_avg - ep_avg_satisfaction)
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
