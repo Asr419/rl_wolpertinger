@@ -62,7 +62,9 @@ class ObservableUserState(AbstractUserState):
         random = torch.rand(1)
         if random < p_positive:
             self.user_state[index] += delta_t  # type: ignore
-        elif random < p_negative:
+        # if random < p_negative:
+        #     self.user_state[index] -= delta_t  # type: ignore
+        else:
             self.user_state[index] -= delta_t  # type: ignore
 
         self.user_state = torch.clamp(self.user_state, -1, 1)
