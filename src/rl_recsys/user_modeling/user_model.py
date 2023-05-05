@@ -58,7 +58,7 @@ class UserModel(nn.Module):
 
     def update_budget(self, response: torch.Tensor, doc_length: int) -> None:
         _response = response.item()
-        depreciation = doc_length + (9 / 34) * doc_length * _response
+        depreciation = doc_length - (9 / 34) * doc_length * _response
         self.budget -= depreciation
 
 
