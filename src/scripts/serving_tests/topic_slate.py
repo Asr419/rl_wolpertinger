@@ -2,7 +2,8 @@ from scripts.simulation_imports import *
 
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
-PATH = "../../pomdp_saved_models/observed_topic_slateq_42_04-30_20-04-17/model.pt"
+load_dotenv()
+base_path = Path.home() / Path(os.environ.get("SAVE_PATH"))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -17,11 +18,14 @@ if __name__ == "__main__":
 
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
-
+    USER_SEED = 3
     parameters = config["parameters"]
-    SEEDS = parameters["seeds"]
-    for seed in SEEDS:
-        pl.seed_everything(seed)
+    NUM_EPISODES = 100
+    ALPHA = 0.25
+    SEEDS = [42, 5, 7, 97, 53]
+    for seed in tqdm(SEEDS):
+        pl.seed_everything(USER_SEED)
+        PATH = base_path / Path(f"observed_topic_slateq_{ALPHA}_{seed}/model.pt")
         ######## User related parameters ########
         state_model_cls = parameters["state_model_cls"]
         choice_model_cls = parameters["choice_model_cls"]
@@ -43,7 +47,6 @@ if __name__ == "__main__":
         GAMMA = parameters["gamma"]
         TAU = parameters["tau"]
         LR = float(parameters["lr"])
-        NUM_EPISODES = parameters["num_episodes"]
         WARMUP_BATCHES = parameters["warmup_batches"]
         DEVICE = parameters["device"]
         DEVICE = torch.device(DEVICE)
@@ -109,7 +112,7 @@ if __name__ == "__main__":
         save_dict = defaultdict(list)
         is_terminal = False
         for i_episode in tqdm(range(NUM_EPISODES)):
-            reward, diff_to_best, quality = [], [], []
+            reward, diff_to_best, quality, time_unit_consumed = [], [], [], []
 
             env.reset()
             is_terminal = False
@@ -174,18 +177,14 @@ if __name__ == "__main__":
 
                     next_user_state = env.curr_user.get_state()
                     # push memory
-                    replay_memory_dataset.push(
-                        transition_cls(
-                            user_state,  # type: ignore
-                            selected_doc_feature,
-                            cdocs_features,
-                            response,
-                            next_user_state,  # type: ignore
-                        )
-                    )
                     user_state = next_user_state
+                    if torch.all(selected_doc_feature == 0):
+                        time_unit_consumed.append(-0.5)
+                    else:
+                        time_unit_consumed.append(4.0)
 
             ep_quality = torch.mean(torch.tensor(quality))
+            sess_length = np.sum(time_unit_consumed)
             ep_avg_reward = torch.mean(torch.tensor(reward))
             ep_cum_reward = torch.sum(torch.tensor(reward))
             ep_max_avg = torch.mean(torch.tensor(max_sess))
@@ -221,6 +220,7 @@ if __name__ == "__main__":
             wandb.log(log_dict, step=i_episode)
 
             ###########################################################################
+            save_dict["session_length"].append(sess_length)
             save_dict["ep_cum_reward"].append(ep_cum_reward)
             save_dict["ep_avg_reward"].append(ep_avg_reward)
 
@@ -228,6 +228,8 @@ if __name__ == "__main__":
             save_dict["best_avg_avg_diff"].append(ep_max_avg - ep_avg_avg)
             save_dict["cum_normalized"].append(cum_normalized)
 
+        for k, v in save_dict.items():
+            print(k, len(v))
         wandb.finish()
-        directory = "test_serving_observed_topic_slateq"
+        directory = f"test_serving_observed_topic_slateq"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

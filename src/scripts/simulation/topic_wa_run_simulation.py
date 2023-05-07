@@ -257,15 +257,16 @@ if __name__ == "__main__":
 
                     next_user_state = env.curr_user.get_state()
                     # push memory
-                    replay_memory_dataset.push(
-                        transition_cls(
-                            user_state,  # type: ignore
-                            selected_doc_feature,
-                            cdocs_features,
-                            response,
-                            next_user_state,  # type: ignore
+                    if not torch.all(selected_doc_feature == 0):
+                        replay_memory_dataset.push(
+                            transition_cls(
+                                user_state,  # type: ignore
+                                selected_doc_feature,
+                                cdocs_features,
+                                response,
+                                next_user_state,  # type: ignore
+                            )
                         )
-                    )
                     user_state = next_user_state
 
             # optimize model
@@ -333,7 +334,7 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = f"observed_topic_wa_5_slateq_{ALPHA_RESPONSE}_null"
+        directory = f"observed_topic_wa_10_slateq_{ALPHA_RESPONSE}"
         save_run_wa(
             seed=seed,
             save_dict=save_dict,
