@@ -12,7 +12,7 @@ RUN_K = [5, 10, 20]
 DEVICE = "cpu"
 print("DEVICE: ", DEVICE)
 
-NUM_CANDIDATES = [300, 500, 1000, 2000, 5000]
+NUM_CANDIDATES = [300, 500, 1000, 2000]
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     config_path = "src/scripts/config.yaml"
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     parameters = config["parameters"]
 
-    seed = 8678
+    seed = 37
 
     model_name_list = []
     num_candidates_list = []
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
         ######## Environment related parameters ########
         SLATE_SIZE = parameters["slate_size"]
-        NUM_USERS = 1
+        NUM_USERS = 5
         NUM_ITEM_FEATURES = parameters["num_item_features"]
         SESS_BUDGET = parameters["sess_budget"]
         NUM_USER_FEATURES = parameters["num_user_features"]
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         GAMMA = parameters["gamma"]
         TAU = parameters["tau"]
         LR = float(parameters["lr"])
-        NUM_EPISODES = 1
+        NUM_EPISODES = 5
         WARMUP_BATCHES = parameters["warmup_batches"]
         DEVICE = parameters["device"]
         DEVICE = torch.device(DEVICE)
@@ -127,6 +127,7 @@ if __name__ == "__main__":
         save_dict = defaultdict(list)
         is_terminal = False
 
+        user_serving_time = []
         for i_episode in tqdm(range(NUM_EPISODES)):
             reward, diff_to_best, quality = [], [], []
 
@@ -179,7 +180,6 @@ if __name__ == "__main__":
                     serving_time.append(end - start)
 
                     reward.append(response)
-                    quality.append(doc_quality)
 
                     next_user_state = env.curr_user.get_state()
                     # push memory
@@ -193,10 +193,14 @@ if __name__ == "__main__":
                         )
                     )
                     user_state = next_user_state
-            serving_time_users_list.append(np.mean(serving_time))
+            user_serving_time.append(np.mean(serving_time))
+
+        print("mean serving time: ", np.mean(user_serving_time))
+        serving_time_users_list.append(np.mean(user_serving_time))
     # construct a df and save it
     res_df = pd.DataFrame(
         zip(model_name_list, num_candidates_list, serving_time_users_list),
         columns=["model_name", "num_candidates", "serving_time"],
     )
+    res_df.to_csv(BASE_LOAD_PATH / "serving_time_slateq.csv", index=False)
     print(res_df)
