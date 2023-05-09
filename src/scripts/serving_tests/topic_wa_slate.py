@@ -25,15 +25,15 @@ if __name__ == "__main__":
     ALPHA = 0.25
     SEEDS = [42, 5, 7, 97, 53]
     # K = [5, 10, 20]
-    K = [5]
+    K = [5, 10, 20]
     for seed in SEEDS:
         for k in K:
             pl.seed_everything(USER_SEED)
             PATH = base_path / Path(
-                f"observed_topic_wa_{k}_slateq_{ALPHA}_{seed}/model.pt"
+                f"observed_topic_wa_{k}_slateq_{ALPHA}_2000_{seed}/model.pt"
             )
             ACTOR_PATH = base_path / Path(
-                f"observed_topic_wa_{k}_slateq_{ALPHA}_{seed}/actor.pt"
+                f"observed_topic_wa_{k}_slateq_{ALPHA}_2000_{seed}/actor.pt"
             )
             ######## User related parameters ########
             state_model_cls = parameters["state_model_cls"]
@@ -249,5 +249,5 @@ if __name__ == "__main__":
 
             # wandb.finish()
 
-            directory = f"test_wa_{k}_serving_observed_topic_slateq"
+            directory = f"test_wa_{k}_serving_observed_topic_slateq_2000"
             save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

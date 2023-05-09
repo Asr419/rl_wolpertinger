@@ -34,9 +34,15 @@ def optimize_model(batch):
         # retrieve max_a Q(s', a)
         scores_tens = torch.softmax(scores_tens, dim=0)
 
-        curr_q_tgt = torch.topk(
-            (cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE
-        ).values.sum()
+        topk = torch.topk((cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE)
+
+        curr_q_tgt = topk.values
+
+        topk_idx = topk.indices
+        p_sum = scores_tens[topk_idx, :].squeeze().sum()
+
+        # normalize curr_q_tgt to sum to 1
+        curr_q_tgt = torch.sum(curr_q_tgt / p_sum)
         cand_qtgt_list.append(curr_q_tgt)
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
@@ -312,5 +318,5 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = f"observed_topic_slateq_{ALPHA_RESPONSE}"
+        directory = f"observed_topic_slateq_{ALPHA_RESPONSE}_try_2000"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

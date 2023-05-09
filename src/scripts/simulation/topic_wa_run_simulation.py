@@ -45,14 +45,26 @@ def optimize_model(batch):
         scores_tens = torch.softmax(scores_tens, dim=0)
 
         # cand_qtgt_list.append((cand_qtgt * scores_tens).max())
-        curr_q_tgt = torch.topk(
-            (cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE
-        ).values.sum()
+
+        topk = torch.topk((cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE)
+        curr_q_tgt = topk.values
+        topk_idx = topk.indices
+        p_sum = scores_tens[topk_idx, :].squeeze().sum()
+        # normalize curr_q_tgt to sum to 1
+        curr_q_tgt = torch.sum(curr_q_tgt / p_sum)
+
+        # curr_q_tgt = torch.topk(
+        #     (cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE
+        # ).values.sum()
+
         cand_qtgt_list.append(curr_q_tgt)
 
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
 
     expected_q_values = q_tgt * GAMMA + satisfaction_batch.unsqueeze(dim=1)
+    print("q_val", q_val.mean(dim=0))
+    print("q_tgt", q_tgt.mean(dim=0))
+    print("reward", satisfaction_batch.mean())
 
     # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
@@ -334,7 +346,7 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = f"observed_topic_wa_10_slateq_{ALPHA_RESPONSE}"
+        directory = f"observed_topic_wa_20_slateq_{ALPHA_RESPONSE}_try_2000"
         save_run_wa(
             seed=seed,
             save_dict=save_dict,
