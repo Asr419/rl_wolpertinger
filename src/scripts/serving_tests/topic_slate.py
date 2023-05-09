@@ -231,5 +231,5 @@ if __name__ == "__main__":
         for k, v in save_dict.items():
             print(k, len(v))
         wandb.finish()
-        directory = f"test_serving_observed_topic_slateq"
+        directory = f"test_serving_observed_topic_slateq_2000"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)
