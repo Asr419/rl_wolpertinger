@@ -34,9 +34,6 @@ def optimize_model(batch):
         # retrieve max_a Q(s', a)
         scores_tens = torch.softmax(scores_tens, dim=0)
 
-        # wrong
-        # cand_qtgt_list.append((cand_qtgt * scores_tens).max())
-
         curr_q_tgt = torch.topk(
             (cand_qtgt * scores_tens), dim=0, k=SLATE_SIZE
         ).values.sum()
@@ -166,7 +163,13 @@ if __name__ == "__main__":
         save_dict = defaultdict(list)
         is_terminal = False
         for i_episode in tqdm(range(NUM_EPISODES)):
-            satisfaction, loss, diff_to_best, quality = [], [], [], []
+            satisfaction, loss, diff_to_best, quality, time_unit_consumed = (
+                [],
+                [],
+                [],
+                [],
+                [],
+            )
 
             env.reset()
             is_terminal = False
@@ -230,16 +233,24 @@ if __name__ == "__main__":
                     quality.append(doc_quality)
 
                     next_user_state = env.curr_user.get_state()
-                    # push memory
-                    replay_memory_dataset.push(
-                        transition_cls(
-                            user_state,  # type: ignore
-                            selected_doc_feature,
-                            cdocs_features,
-                            response,
-                            next_user_state,  # type: ignore
+
+                    # check that not null document has been selected
+                    if not torch.all(selected_doc_feature == 0):
+                        # append 4 document length
+                        time_unit_consumed.append(4.0)
+                        # push memory
+                        replay_memory_dataset.push(
+                            transition_cls(
+                                user_state,  # type: ignore
+                                selected_doc_feature,
+                                cdocs_features,
+                                response,
+                                next_user_state,  # type: ignore
+                            )
                         )
-                    )
+                    else:
+                        # append -0.5
+                        time_unit_consumed.append(-0.5)
                     user_state = next_user_state
 
             # optimize model
@@ -252,7 +263,7 @@ if __name__ == "__main__":
                 loss.append(batch_loss)
 
             loss = torch.mean(torch.tensor(loss))
-            sess_length = len(torch.tensor(quality))
+            sess_length = np.sum(time_unit_consumed)
             ep_quality = torch.mean(torch.tensor(quality))
             ep_avg_satisfaction = torch.mean(torch.tensor(satisfaction))
             ep_cum_satisfaction = torch.sum(torch.tensor(satisfaction))

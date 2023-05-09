@@ -251,7 +251,7 @@ if __name__ == "__main__":
                 loss.append(batch_loss)
 
             loss = torch.mean(torch.tensor(loss))
-
+            sess_length = len(torch.tensor(quality))
             ep_quality = torch.mean(torch.tensor(quality))
             ep_avg_reward = torch.mean(torch.tensor(reward))
             ep_cum_reward = torch.sum(torch.tensor(reward))
@@ -291,6 +291,7 @@ if __name__ == "__main__":
             wandb.log(log_dict, step=i_episode)
 
             ###########################################################################
+            save_dict["session_length"].append(sess_length)
             save_dict["ep_cum_reward"].append(ep_cum_reward)
             save_dict["ep_avg_reward"].append(ep_avg_reward)
             save_dict["loss"].append(loss)
@@ -299,5 +300,5 @@ if __name__ == "__main__":
             save_dict["cum_normalized"].append(cum_normalized)
 
         wandb.finish()
-        directory = f"observed_topic_k_nearest_slateq_{ALPHA_RESPONSE}"
+        directory = f"observed_topic_k_nearest_slateq_{ALPHA_RESPONSE}_null"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

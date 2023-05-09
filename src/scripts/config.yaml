@@ -24,9 +24,10 @@ parameters:
   ######## Models related parameters ########
   slate_gen_model_cls: TopKSlateGenerator
   ######## Wolpertinger policy ########
-  nearest_neighbours: 60
+  nearest_neighbours: 30
   ######## Seed ########
-  seeds: [5, 7, 42, 97, 33]
+  seeds: [53]
+  #[5, 7, 42, 97, 33]
   #[5, 7, 42, 97, 33]
   #test=[140, 184, 30, 62, 4]
   #test = [27,29,31]
@@ -35,5 +36,5 @@ parameters:
   #[5, 7, 9, 11, 13, 17]
   #[5, 7, 77, 79, 81, 42, 11, 13, 17]
   ######## Grouping ########
-  grouping: "WA_20"
+  grouping: "WA_10"
   

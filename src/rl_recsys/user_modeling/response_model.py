@@ -7,7 +7,7 @@ import torch
 
 
 class AbstractResponseModel(metaclass=abc.ABCMeta):
-    def __init__(self, null_response: float = 0.0) -> None:
+    def __init__(self, null_response: float = -1.0) -> None:
         self.null_response = null_response
 
     @abc.abstractmethod
