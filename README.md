@@ -1,4 +1,4 @@
-# Reinforcement Learning Recommender Systems
+# Scalable Deep Q-learning for Session-Based Slate Recommendation
 Authors: 
 - Aayush Singha Roy (aayush.singharoy@insight-centre.org) 
 - Edoardo D'Amico (edoardo.damico@insight-centre.org)
