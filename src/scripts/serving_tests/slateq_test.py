@@ -5,27 +5,32 @@ print("DEVICE: ", DEVICE)
 load_dotenv()
 base_path = Path.home() / Path(os.environ.get("SAVE_PATH"))
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    config_path = "src/scripts/config.yaml"
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=config_path,
-        help="Path to the config file.",
-    )
-    args = parser.parse_args()
 
-    with open(args.config, "r") as f:
-        config = yaml.safe_load(f)
-    USER_SEED = 3
-    parameters = config["parameters"]
-    NUM_EPISODES = 100
-    ALPHA = 0.25
+if __name__ == "__main__":
     SEEDS = [42, 5, 7, 97, 53]
+    USER_SEED = 11
+    NUM_EPISODES = 100
+
     for seed in tqdm(SEEDS):
+        ALPHA = 0.25
+        RUN_BASE_PATH = Path(f"observed_topic_slateq_{ALPHA}_try_2000_{seed}")
+
+        parser = argparse.ArgumentParser()
+        config_path = base_path / RUN_BASE_PATH / Path("config.yaml")
+        parser.add_argument(
+            "--config",
+            type=str,
+            default=config_path,
+            help="Path to the config file.",
+        )
+        args = parser.parse_args()
+        with open(args.config, "r") as f:
+            config = yaml.safe_load(f)
+
+        parameters = config["parameters"]
+
         pl.seed_everything(USER_SEED)
-        PATH = base_path / Path(f"observed_topic_slateq_{ALPHA}_{seed}/model.pt")
+        PATH = base_path / RUN_BASE_PATH / Path("model.pt")
         ######## User related parameters ########
         state_model_cls = parameters["state_model_cls"]
         choice_model_cls = parameters["choice_model_cls"]
@@ -56,7 +61,7 @@ if __name__ == "__main__":
 
         ######## Init_wandb ########
         RUN_NAME = f"Topic_GAMMA_{GAMMA}_SEED_{seed}_ALPHA_{ALPHA_RESPONSE}_SLATEQ"
-        wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
+        # wandb.init(project="rl_recsys", config=config["parameters"], name=RUN_NAME)
 
         ################################################################
         user_feat_gen = UniformFeaturesGenerator()
@@ -217,7 +222,7 @@ if __name__ == "__main__":
                 "best_avg_avg_diff": ep_max_avg - ep_avg_avg,
                 "cum_normalized": cum_normalized,
             }
-            wandb.log(log_dict, step=i_episode)
+            # wandb.log(log_dict, step=i_episode)
 
             ###########################################################################
             save_dict["session_length"].append(sess_length)
@@ -230,6 +235,6 @@ if __name__ == "__main__":
 
         for k, v in save_dict.items():
             print(k, len(v))
-        wandb.finish()
-        directory = f"test_serving_observed_topic_slateq_2000"
+        # wandb.finish()
+        directory = f"test_serving_slateq_2000"
         save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)
