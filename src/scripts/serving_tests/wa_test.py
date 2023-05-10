@@ -6,35 +6,31 @@ load_dotenv()
 base_path = Path.home() / Path(os.environ.get("SAVE_PATH"))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    config_path = "src/scripts/config.yaml"
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=config_path,
-        help="Path to the config file.",
-    )
-    args = parser.parse_args()
-
-    with open(args.config, "r") as f:
-        config = yaml.safe_load(f)
-
-    USER_SEED = 3
-    parameters = config["parameters"]
+    USER_SEED = 11
     NUM_EPISODES = 100
     ALPHA = 0.25
     SEEDS = [42, 5, 7, 97, 53]
     # K = [5, 10, 20]
-    K = [5, 10, 20]
+    K = [5, 10]
     for seed in SEEDS:
         for k in K:
             pl.seed_everything(USER_SEED)
-            PATH = base_path / Path(
-                f"observed_topic_wa_{k}_slateq_{ALPHA}_2000_{seed}/model.pt"
+            RUN_BASE_PATH = Path(f"observed_topic_wa_{k}_slateq_{ALPHA}_try_{seed}")
+            PATH = base_path / RUN_BASE_PATH / Path("model.pt")
+            ACTOR_PATH = base_path / RUN_BASE_PATH / Path("actor.pt")
+            parser = argparse.ArgumentParser()
+            config_path = base_path / RUN_BASE_PATH / Path("config.yaml")
+            parser.add_argument(
+                "--config",
+                type=str,
+                default=config_path,
+                help="Path to the config file.",
             )
-            ACTOR_PATH = base_path / Path(
-                f"observed_topic_wa_{k}_slateq_{ALPHA}_2000_{seed}/actor.pt"
-            )
+            args = parser.parse_args()
+            with open(args.config, "r") as f:
+                config = yaml.safe_load(f)
+
+            parameters = config["parameters"]
             ######## User related parameters ########
             state_model_cls = parameters["state_model_cls"]
             choice_model_cls = parameters["choice_model_cls"]
@@ -249,5 +245,5 @@ if __name__ == "__main__":
 
             # wandb.finish()
 
-            directory = f"test_wa_{k}_serving_observed_topic_slateq_2000"
+            directory = f"test_wa_{k}_serving_slateq"
             save_run(seed=seed, save_dict=save_dict, agent=agent, directory=directory)

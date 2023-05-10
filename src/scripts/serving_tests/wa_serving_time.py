@@ -163,16 +163,6 @@ if __name__ == "__main__":
                             q_val_list.append(q_val)
                         q_val = torch.stack(q_val_list).to(DEVICE)
 
-                        # user_state_rep = user_state.repeat(
-                        #     (cdocs_features_act.shape[0], 1)
-                        # )  # type: ignore
-
-                        # q_val = agent.compute_q_values(
-                        #     state=user_state_rep,
-                        #     candidate_docs_repr=cdocs_features_act,
-                        #     use_policy_net=True,
-                        # )  # type: ignore
-
                         choice_model.score_documents(
                             user_state=user_state, docs_repr=cdocs_features_act
                         )

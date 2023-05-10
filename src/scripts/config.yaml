@@ -9,7 +9,7 @@ parameters:
   sess_budget: 200
   slate_size: 5
   num_item_features: 20
-  num_candidates: 2000
+  num_candidates: 300
   num_user_features: 20
   alpha_response: 0.25
   ######## Training related parameters ########
@@ -24,7 +24,7 @@ parameters:
   ######## Models related parameters ########
   slate_gen_model_cls: TopKSlateGenerator
   ######## Wolpertinger policy ########
-  nearest_neighbours: 400
+  nearest_neighbours: 15
   ######## Seed ########
   seeds: [5, 7, 42, 97, 53]
   #[5, 7, 42, 97, 33]
@@ -36,5 +36,5 @@ parameters:
   #[5, 7, 9, 11, 13, 17]
   #[5, 7, 77, 79, 81, 42, 11, 13, 17]
   ######## Grouping ########
-  grouping: "WA_20"
+  grouping: "WA_5"
   
