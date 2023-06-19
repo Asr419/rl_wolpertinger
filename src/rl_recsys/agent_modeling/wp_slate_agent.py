@@ -9,9 +9,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class WolpertingerActor(nn.Module):
-    def __init__(self, nn_dim: list[int], k: int, input_dim: int = 20):
-        super(WolpertingerActor, self).__init__()
+class WolpertingerActorSlate(nn.Module):
+    def __init__(
+        self, nn_dim: list[int], k: int, input_dim: int = 20, slate_size: int = 5
+    ):
+        super(WolpertingerActorSlate, self).__init__()
         self.k = k
 
         layers = []
@@ -19,7 +21,7 @@ class WolpertingerActor(nn.Module):
             if i == 0:
                 layers.append(nn.Linear(input_dim, dim))
             elif i == len(nn_dim) - 1:
-                layers.append(nn.Linear(dim, 20))
+                layers.append(nn.Linear(dim, slate_size * 20))
             else:
                 layers.append(nn.Linear(dim, dim))
         self.layers = nn.ModuleList(layers)
@@ -45,17 +47,22 @@ class WolpertingerActor(nn.Module):
     #     return candidates_subset, indices
 
 
-class ActorAgent(nn.Module):
+class ActorAgentSlate(nn.Module):
     def __init__(
-        self, nn_dim: list[int], k: int, input_dim: int = 20, tau: float = 0.001
+        self,
+        nn_dim: list[int],
+        k: int,
+        input_dim: int = 20,
+        tau: float = 0.001,
+        slate_size: int = 5,
     ) -> None:
         nn.Module.__init__(self)
         self.tau = tau
-        self.actor_policy_net = WolpertingerActor(
-            nn_dim=nn_dim, k=k, input_dim=input_dim
+        self.actor_policy_net = WolpertingerActorSlate(
+            nn_dim=nn_dim, k=k, input_dim=input_dim, slate_size=slate_size
         )
-        self.actor_target_net = WolpertingerActor(
-            nn_dim=nn_dim, k=k, input_dim=input_dim
+        self.actor_target_net = WolpertingerActorSlate(
+            nn_dim=nn_dim, k=k, input_dim=input_dim, slate_size=slate_size
         )
         self.actor_target_net.requires_grad_(False)
         self.actor_target_net.load_state_dict(self.actor_policy_net.state_dict())
@@ -73,7 +80,7 @@ class ActorAgent(nn.Module):
             ] * self.tau + target_net_state_dict[key] * (1 - self.tau)
         self.actor_target_net.load_state_dict(target_net_state_dict)
 
-    def compute_proto_item(
+    def compute_proto_slate(
         self, state: torch.Tensor, use_actor_policy_net: bool = True
     ):
         if use_actor_policy_net:
@@ -86,17 +93,37 @@ class ActorAgent(nn.Module):
         input_state: torch.Tensor,
         candidate_docs: torch.Tensor,
         use_actor_policy_net,
+        slate_size: int = 5,
     ) -> None:
-        proto_action = self.compute_proto_item(
+        proto_action = self.compute_proto_slate(
             input_state, use_actor_policy_net=use_actor_policy_net
         )
-        distances = torch.linalg.norm(candidate_docs - proto_action, axis=1)
-        # Sort distances and get indices of k smallest distances
-        indices = torch.argsort(distances, dim=0)[: self.k]
-        # Select k closest tensors from tensor list
-        candidates_subset = candidate_docs[indices]
+        proto_slate = proto_action.view(slate_size, 20)
+        for count, i in enumerate(proto_slate):
+            distances = torch.linalg.norm(candidate_docs - i, axis=1)
+            # Sort distances and get indices of k smallest distances
+            indices = torch.argsort(distances, dim=0)[: self.k]
 
-        return candidates_subset, indices
+            # Select k closest tensors from tensor list
+            candidates_subset = candidate_docs[indices]
+            if count == 0:
+                indices_tensor = indices
+                candidates_tensor = candidates_subset
+            else:
+                indices_tensor = torch.cat((indices_tensor, indices), dim=0)
+                candidates_tensor = torch.cat(
+                    (candidates_tensor, candidates_subset), dim=0
+                )
+
+            # append indices to another tensor at each iteration
+
+        # distances = torch.linalg.norm(candidate_docs - proto_action, axis=1)
+        # # Sort distances and get indices of k smallest distances
+        # indices = torch.argsort(distances, dim=0)[: self.k]
+        # # Select k closest tensors from tensor list
+        # candidates_subset = candidate_docs[indices]
+
+        return candidates_tensor, indices_tensor
 
     def test_k_nearest(
         self,

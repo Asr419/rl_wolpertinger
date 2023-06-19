@@ -62,9 +62,9 @@ def optimize_model(batch):
     q_tgt = torch.stack(cand_qtgt_list).unsqueeze(dim=1)
 
     expected_q_values = q_tgt * GAMMA + satisfaction_batch.unsqueeze(dim=1)
-    print("q_val", q_val.mean(dim=0))
-    print("q_tgt", q_tgt.mean(dim=0))
-    print("reward", satisfaction_batch.mean())
+    # print("q_val", q_val.mean(dim=0))
+    # print("q_tgt", q_tgt.mean(dim=0))
+    # print("reward", satisfaction_batch.mean())
 
     # expected_q_values = q_tgt
     loss = criterion(q_val, expected_q_values)
@@ -75,7 +75,7 @@ def optimize_model(batch):
 
     actor_loss = -agent.compute_q_values(
         state_batch,
-        actor.compute_proto_action(state_batch, use_actor_policy_net=True),
+        actor.compute_proto_item(state_batch, use_actor_policy_net=True),
         use_policy_net=True,
     )
     actor_loss = actor_loss.mean()
