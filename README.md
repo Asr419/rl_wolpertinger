@@ -1,6 +1,9 @@
 # Scalable Deep Q-learning for Session-Based Slate Recommendation
 The paper is published in the proceedings of ACM RecSys 2023 and can be found here
-[Read Paper](https://dl.acm.org/doi/abs/10.1145/3604915.3608843)
+-[Read Paper](https://dl.acm.org/doi/abs/10.1145/3604915.3608843)
+
+---
+
 Authors: 
 - Aayush Singha Roy (aayush.singharoy@insight-centre.org) 
 - Edoardo D'Amico (edoardo.damico@insight-centre.org)
